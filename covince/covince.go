@@ -33,10 +33,15 @@ func matchLineages(r Record, q Query) (bool, string) {
 	for _, ql := range q.Lineages {
 		if strings.HasPrefix(r.PangoClade, ql.PangoClade) {
 			if len(ql.Mutations) > 0 {
+				hasMuts := true
 				for _, m := range ql.Mutations {
 					if !strings.Contains(r.Mutations, m) {
-						continue
+						hasMuts = false
+						break
 					}
+				}
+				if !hasMuts {
+					continue
 				}
 			}
 			return true, ql.Key
@@ -100,6 +105,6 @@ func Spatiotemporal(i Index, q Query, r Record) {
 
 func Lineages(m map[string]int, q Query, r Record) {
 	if matchMetadata(r, q) {
-		m[r.PangoClade] += r.Count
+		m[r.Lineage] += r.Count
 	}
 }

@@ -26,7 +26,13 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 	for _, v := range lineages {
 		split := strings.Split(v, "+")
 		lineage := split[0]
-		mutations := split[1:] // TODO: first two mutations only
+		mutations := split[1:]
+		for i, m := range mutations {
+			if i > 1 {
+				break
+			}
+			mutations[i] = "|" + m + "|"
+		}
 		if !isPangoLineage.MatchString(split[0]) {
 			return nil, fmt.Errorf("invalid lineages")
 		}
@@ -44,17 +50,13 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 			}
 		}
 	}
-	keys := make([]string, len(index))
+	parsedLineages := make([]covince.QueryLineage, len(index))
 	i := 0
-	for k := range index {
-		keys[i] = k
+	for _, v := range index {
+		parsedLineages[i] = v
 		i++
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(keys))) // TODO: implement real sort
-	parsedLineages := make([]covince.QueryLineage, len(keys))
-	for i, k := range keys {
-		parsedLineages[i] = index[k]
-	}
+	sort.Sort(covince.SortLineagesForQuery(parsedLineages))
 	return parsedLineages, nil
 }
 
