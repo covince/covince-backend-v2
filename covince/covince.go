@@ -108,3 +108,27 @@ func Lineages(m map[string]int, q Query, r Record) {
 		m[r.Lineage] += r.Count
 	}
 }
+
+func Info(foreach func(func(r Record))) ([]string, []string) {
+	dates := make(map[string]bool)
+	areas := make(map[string]bool)
+
+	foreach(func(r Record) {
+		dates[r.Date] = true
+		areas[r.Area] = true
+	})
+
+	dateArray := make([]string, len(dates))
+	i := 0
+	for k := range dates {
+		dateArray[i] = k
+		i++
+	}
+	areaArray := make([]string, len(areas))
+	i = 0
+	for k := range areas {
+		areaArray[i] = k
+		i++
+	}
+	return dateArray, areaArray
+}

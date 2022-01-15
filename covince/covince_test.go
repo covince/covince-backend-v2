@@ -69,11 +69,64 @@ func TestFrequency(t *testing.T) {
 }
 
 func TestTotals(t *testing.T) {
+	var i Index
+	var q Query
 
+	t.Run("Roll up to B", func(t *testing.T) {
+		i = Index{}
+		q = Query{
+			Lineages: []QueryLineage{
+				{Key: "B", PangoClade: "B."},
+			},
+		}
+		for _, r := range testRecords {
+			Totals(i, q, r)
+		}
+		assert.Equal(t, Index{
+			"2020-09-01": {"A": 1},
+			"2020-10-01": {"B": 2},
+			"2020-11-01": {"C": 3},
+		}, i)
+	})
 }
 
 func TestSpatiotemporal(t *testing.T) {
+	var i Index
+	var q Query
 
+	t.Run("Roll up to B", func(t *testing.T) {
+		i = Index{}
+		q = Query{
+			Lineages: []QueryLineage{
+				{Key: "B", PangoClade: "B."},
+			},
+		}
+		for _, r := range testRecords {
+			Spatiotemporal(i, q, r)
+		}
+		assert.Equal(t, Index{
+			"2020-09-01": {"A": 1},
+			"2020-10-01": {"B": 2},
+			"2020-11-01": {"C": 3},
+		}, i)
+	})
+
+	t.Run("Exclude sublineage", func(t *testing.T) {
+		i = Index{}
+		q = Query{
+			Lineages: []QueryLineage{
+				{Key: "B", PangoClade: "B."},
+			},
+			Excluding: []string{"B.1.2."},
+		}
+		for _, r := range testRecords {
+			Spatiotemporal(i, q, r)
+		}
+		assert.Equal(t, Index{
+			"2020-09-01": {"A": 1},
+			"2020-10-01": {"B": 2},
+		}, i)
+	})
 }
 
 func TestLineages(t *testing.T) {
@@ -91,4 +144,50 @@ func TestLineages(t *testing.T) {
 			"B.1.2": 3,
 		}, m)
 	})
+
+	t.Run("Filter by area", func(t *testing.T) {
+		m = map[string]int{}
+		q = Query{Area: "A"}
+		for _, r := range testRecords {
+			Lineages(m, q, r)
+		}
+		assert.Equal(t, map[string]int{
+			"B": 1,
+		}, m)
+	})
+
+	t.Run("Filter by dateFrom", func(t *testing.T) {
+		m = map[string]int{}
+		q = Query{DateFrom: "2020-10-01"}
+		for _, r := range testRecords {
+			Lineages(m, q, r)
+		}
+		assert.Equal(t, map[string]int{
+			"B.1":   2,
+			"B.1.2": 3,
+		}, m)
+	})
+
+	t.Run("Filter by dateTo", func(t *testing.T) {
+		m = map[string]int{}
+		q = Query{DateTo: "2020-10-01"}
+		for _, r := range testRecords {
+			Lineages(m, q, r)
+		}
+		assert.Equal(t, map[string]int{
+			"B":   1,
+			"B.1": 2,
+		}, m)
+	})
+}
+
+func TestInfo(t *testing.T) {
+	foreach := func(agg func(r Record)) {
+		for _, r := range testRecords {
+			agg(r)
+		}
+	}
+	dates, areas := Info(foreach)
+	assert.EqualValues(t, []string{"2020-09-01", "2020-10-01", "2020-11-01"}, dates)
+	assert.EqualValues(t, []string{"A", "B", "C"}, areas)
 }

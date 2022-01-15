@@ -23,12 +23,15 @@ func createRecordFromCsv(row []string) covince.Record {
 	}
 }
 
-func server(filePath string) {
+func server(filePath string) http.HandlerFunc {
 	csvfile, err := os.Open(filePath)
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
 	}
-
+	stat, err := csvfile.Stat()
+	if err != nil {
+		log.Fatalln("Couldn't stat the csv file", err)
+	}
 	scanner := bufio.NewScanner(csvfile)
 	s := make([]covince.Record, 0)
 
@@ -39,21 +42,41 @@ func server(filePath string) {
 	}
 	log.Println(len(s), "records")
 
-	api.CovinceAPI(api.Opts{MaxLineages: 16}, func(agg func(r covince.Record)) {
+	opts := api.Opts{
+		MaxLineages: 16,
+		GetLastModified: func() int64 {
+			return stat.ModTime().UnixMilli()
+		},
+	}
+
+	return api.CovinceAPI(opts, func(agg func(r covince.Record)) {
 		for _, r := range s {
 			agg(r)
 		}
 	})
 }
 
-func serverless(filePath string) {
-	api.CovinceAPI(api.Opts{MaxLineages: 16}, func(agg func(r covince.Record)) {
+func serverless(filePath string) http.HandlerFunc {
+	opts := api.Opts{
+		MaxLineages: 16,
+		GetLastModified: func() int64 {
+			csvfile, err := os.Open(filePath)
+			if err != nil {
+				log.Fatalln("Couldn't open the csv file", err)
+			}
+			stat, err := csvfile.Stat()
+			if err != nil {
+				log.Fatalln("Couldn't stat the csv file", err)
+			}
+			return stat.ModTime().UnixMilli()
+		},
+	}
+
+	return api.CovinceAPI(opts, func(agg func(r covince.Record)) {
 		csvfile, err := os.Open(filePath)
-		// csvfile, err := os.Open("input2.tsv")
 		if err != nil {
 			log.Fatalln("Couldn't open the csv file", err)
 		}
-
 		c := make(chan covince.Record, 500)
 		done := make(chan bool)
 		go func() {
@@ -74,8 +97,9 @@ func serverless(filePath string) {
 }
 
 func main() {
-	server("aggregated.csv")
-	// serverless("aggregated.csv")
+	filePath := "aggregated.csv"
+	http.HandleFunc("/", server(filePath))
+	// http.HandleFunc("/", serverless(filePath))
 
 	http.ListenAndServe(":4000", nil)
 }

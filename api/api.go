@@ -13,9 +13,9 @@ import (
 )
 
 type Opts struct {
-	InfoFile    string
-	PathPrefix  string
-	MaxLineages int
+	PathPrefix      string
+	MaxLineages     int
+	GetLastModified func() int64
 }
 
 var isPangoLineage = regexp.MustCompile(`^[A-Z]{1,3}(\.[0-9]+)*$`)
@@ -90,18 +90,18 @@ func parseQuery(qs map[string][]string, maxLineages int) (covince.Query, error) 
 	}
 	if excluding, ok := qs["excluding"]; ok {
 		excluding = strings.Split(excluding[0], ",")
-		for _, lineage := range excluding {
+		for i, lineage := range excluding {
 			if !isPangoLineage.MatchString(lineage) {
 				return q, fmt.Errorf("invalid lineages")
 			}
+			excluding[i] = lineage + "."
 		}
 	}
-	fmt.Println(q, qs)
 	return q, nil
 }
 
-func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) {
-	http.HandleFunc(opts.PathPrefix+"/", func(rw http.ResponseWriter, r *http.Request) {
+func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		if r.Method != "GET" {
@@ -117,6 +117,17 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) {
 
 		var response interface{}
 
+		if r.URL.Path == opts.PathPrefix+"/info" {
+			dates, areas := covince.Info(foreach)
+
+			m := make(map[string]interface{})
+			m["dates"] = dates
+			m["area"] = areas
+			m["lastModified"] = opts.GetLastModified()
+			m["maxLineages"] = opts.MaxLineages
+
+			response = m
+		}
 		if r.URL.Path == opts.PathPrefix+"/frequency" {
 			i := make(covince.Index)
 			foreach(func(r covince.Record) {
@@ -152,5 +163,5 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) {
 
 		duration := time.Since(start)
 		fmt.Println(duration.Milliseconds(), "ms")
-	})
+	}
 }

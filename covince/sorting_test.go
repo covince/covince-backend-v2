@@ -14,7 +14,7 @@ func TestSorting(t *testing.T) {
 		{Key: "B.1", PangoClade: "B.1."},
 	}
 
-	sort.Sort(SortLineages(q))
+	sort.Sort(SortLineagesForQuery(q))
 
 	assert.Equal(t, []QueryLineage{
 		{Key: "B.1", PangoClade: "B.1."},
