@@ -23,7 +23,7 @@ func createRecordFromCsv(row []string) covince.Record {
 	}
 }
 
-func server(filePath string) http.HandlerFunc {
+func server(filePath string, urlPath string) http.HandlerFunc {
 	csvfile, err := os.Open(filePath)
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)
@@ -43,6 +43,7 @@ func server(filePath string) http.HandlerFunc {
 	log.Println(len(s), "records")
 
 	opts := api.Opts{
+		PathPrefix:  urlPath,
 		MaxLineages: 16,
 		GetLastModified: func() int64 {
 			return stat.ModTime().UnixMilli()
@@ -98,7 +99,8 @@ func serverless(filePath string) http.HandlerFunc {
 
 func main() {
 	filePath := "aggregated.csv"
-	http.HandleFunc("/", server(filePath))
+	urlPath := "/api/raw"
+	http.HandleFunc("/api/raw/", server(filePath, urlPath))
 	// http.HandleFunc("/", serverless(filePath))
 
 	http.ListenAndServe(":4000", nil)

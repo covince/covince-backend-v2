@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"sort"
@@ -91,6 +92,9 @@ func parseQuery(qs map[string][]string, maxLineages int) (covince.Query, error) 
 	if excluding, ok := qs["excluding"]; ok {
 		excluding = strings.Split(excluding[0], ",")
 		for i, lineage := range excluding {
+			if len(lineage) == 0 {
+				continue
+			}
 			if !isPangoLineage.MatchString(lineage) {
 				return q, fmt.Errorf("invalid lineages")
 			}
@@ -117,12 +121,14 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 
 		var response interface{}
 
+		log.Println(r.URL.Path)
+
 		if r.URL.Path == opts.PathPrefix+"/info" {
 			dates, areas := covince.Info(foreach)
 
 			m := make(map[string]interface{})
 			m["dates"] = dates
-			m["area"] = areas
+			m["areas"] = areas
 			m["lastModified"] = opts.GetLastModified()
 			m["maxLineages"] = opts.MaxLineages
 
