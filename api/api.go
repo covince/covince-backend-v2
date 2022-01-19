@@ -141,7 +141,6 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 			response = m
 		}
 		if r.URL.Path == opts.PathPrefix+"/frequency" {
-			time.Sleep(500 * time.Millisecond)
 			i := make(covince.Index)
 			foreach(func(r covince.Record) {
 				covince.Frequency(i, q, r)
