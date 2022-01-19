@@ -51,7 +51,7 @@ func matchLineages(r Record, q Query) (bool, string) {
 }
 
 func matchMetadata(r Record, q Query) bool {
-	if q.Area != "" && r.Area != q.Area {
+	if q.Area != "" && q.Area != "overview" && r.Area != q.Area {
 		return false
 	}
 	if q.DateFrom != "" && r.Date < q.DateFrom {

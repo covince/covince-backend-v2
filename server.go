@@ -7,18 +7,20 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/covince/covince-backend-v2/api"
 	"github.com/covince/covince-backend-v2/covince"
 )
 
 func createRecordFromCsv(row []string) covince.Record {
-	count, _ := strconv.Atoi(row[4])
+	count, _ := strconv.Atoi(row[5])
 	return covince.Record{
 		Date:       row[0],
-		PangoClade: row[1],
-		Area:       row[2],
-		Mutations:  row[3],
+		Lineage:    row[1],
+		PangoClade: row[2],
+		Area:       row[3],
+		Mutations:  row[4],
 		Count:      count,
 	}
 }
@@ -51,9 +53,13 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 	}
 
 	return api.CovinceAPI(opts, func(agg func(r covince.Record)) {
+		start := time.Now()
+		log.Println("Start aggregation")
 		for _, r := range s {
 			agg(r)
 		}
+		duration := time.Since(start)
+		log.Println("Aggregation took:", duration.Milliseconds(), "ms")
 	})
 }
 

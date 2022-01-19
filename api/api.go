@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -63,7 +64,13 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 
 func parseQuery(qs map[string][]string, maxLineages int) (covince.Query, error) {
 	var q covince.Query
-	if lineages, ok := qs["lineages"]; ok {
+	if lineage, ok := qs["lineage"]; ok {
+		p, err := parseLineages(lineage)
+		if err != nil {
+			return q, err
+		}
+		q.Lineages = p
+	} else if lineages, ok := qs["lineages"]; ok {
 		lineages = strings.Split(lineages[0], ",")
 		if len(lineages) > maxLineages {
 			return q, fmt.Errorf("too many lineages")
@@ -74,16 +81,16 @@ func parseQuery(qs map[string][]string, maxLineages int) (covince.Query, error) 
 		}
 		q.Lineages = p
 	}
-	if a, ok := qs["area"]; ok {
+	if a, ok := qs["area"]; ok && a[0] != "overview" {
 		q.Area = a[0]
 	}
-	if from, ok := qs["from"]; ok {
+	if from, ok := qs["from"]; ok && len(from[0]) > 0 {
 		if !isDateString.MatchString(from[0]) {
 			return q, fmt.Errorf("invalid date")
 		}
 		q.DateFrom = from[0]
 	}
-	if to, ok := qs["to"]; ok {
+	if to, ok := qs["to"]; ok && len(to[0]) > 0 {
 		if !isDateString.MatchString(to[0]) {
 			return q, fmt.Errorf("invalid date")
 		}
@@ -107,6 +114,7 @@ func parseQuery(qs map[string][]string, maxLineages int) (covince.Query, error) 
 func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		log.Println("Handle request")
 
 		if r.Method != "GET" {
 			rw.WriteHeader(http.StatusMethodNotAllowed)
@@ -121,8 +129,6 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 
 		var response interface{}
 
-		log.Println(r.URL.Path)
-
 		if r.URL.Path == opts.PathPrefix+"/info" {
 			dates, areas := covince.Info(foreach)
 
@@ -135,6 +141,7 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 			response = m
 		}
 		if r.URL.Path == opts.PathPrefix+"/frequency" {
+			time.Sleep(500 * time.Millisecond)
 			i := make(covince.Index)
 			foreach(func(r covince.Record) {
 				covince.Frequency(i, q, r)
@@ -167,7 +174,19 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 		rw.WriteHeader(http.StatusOK)
 		json.NewEncoder(rw).Encode(response)
 
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+		fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+		fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+		fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+		fmt.Printf("\tNumGC = %v\n", m.NumGC)
+
 		duration := time.Since(start)
-		fmt.Println(duration.Milliseconds(), "ms")
+		log.Println(r.URL.Path, "took", duration.Milliseconds(), "ms")
 	}
+}
+
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }
