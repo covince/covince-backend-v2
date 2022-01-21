@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"regexp"
 	"runtime"
 	"sort"
@@ -26,6 +27,9 @@ var isDateString = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
 func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 	index := make(map[string]covince.QueryLineage)
 	for _, v := range lineages {
+		if len(v) == 0 {
+			continue
+		}
 		split := strings.Split(v, "+")
 		lineage := split[0]
 		mutations := split[1:]
@@ -62,7 +66,7 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 	return parsedLineages, nil
 }
 
-func parseQuery(qs map[string][]string, maxLineages int) (covince.Query, error) {
+func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 	var q covince.Query
 	if lineage, ok := qs["lineage"]; ok {
 		p, err := parseLineages(lineage)
