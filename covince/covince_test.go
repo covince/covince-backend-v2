@@ -53,7 +53,7 @@ func TestFrequency(t *testing.T) {
 		i = Index{}
 		q = Query{
 			Lineages: []QueryLineage{
-				{Key: "B+B", PangoClade: "B.", Mutations: []string{"B"}},
+				{Key: "B+B", PangoClade: "B.", Mutations: []string{"|B|"}},
 				{Key: "B", PangoClade: "B."},
 			},
 		}
@@ -117,7 +117,9 @@ func TestSpatiotemporal(t *testing.T) {
 			Lineages: []QueryLineage{
 				{Key: "B", PangoClade: "B."},
 			},
-			Excluding: []string{"B.1.2."},
+			Excluding: []QueryLineage{
+				{Key: "B.1.2", PangoClade: "B.1.2."},
+			},
 		}
 		for _, r := range testRecords {
 			Spatiotemporal(i, q, r)
@@ -125,6 +127,21 @@ func TestSpatiotemporal(t *testing.T) {
 		assert.Equal(t, Index{
 			"2020-09-01": {"A": 1},
 			"2020-10-01": {"B": 2},
+		}, i)
+	})
+
+	t.Run("Filter by mutation", func(t *testing.T) {
+		i = Index{}
+		q = Query{
+			Lineages: []QueryLineage{
+				{Key: "B.1", PangoClade: "B.1.", Mutations: []string{"|C|"}},
+			},
+		}
+		for _, r := range testRecords {
+			Spatiotemporal(i, q, r)
+		}
+		assert.Equal(t, Index{
+			"2020-11-01": {"C": 3},
 		}, i)
 	})
 }

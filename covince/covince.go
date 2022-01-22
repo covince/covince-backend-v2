@@ -23,14 +23,14 @@ type QueryLineage struct {
 
 type Query struct {
 	Lineages  []QueryLineage
-	Excluding []string
+	Excluding []QueryLineage
 	Area      string
 	DateFrom  string
 	DateTo    string
 }
 
-func matchLineages(r Record, q Query) (bool, string) {
-	for _, ql := range q.Lineages {
+func matchLineages(r Record, lineages []QueryLineage) (bool, string) {
+	for _, ql := range lineages {
 		if strings.HasPrefix(r.PangoClade, ql.PangoClade) {
 			if len(ql.Mutations) > 0 {
 				hasMuts := true
@@ -65,7 +65,7 @@ func matchMetadata(r Record, q Query) bool {
 
 func Frequency(i Index, q Query, r Record) {
 	if matchMetadata(r, q) {
-		if ok, key := matchLineages(r, q); ok {
+		if ok, key := matchLineages(r, q.Lineages); ok {
 			dateCounts, ok := i[r.Date]
 			if !ok {
 				dateCounts = make(map[string]int)
@@ -77,7 +77,7 @@ func Frequency(i Index, q Query, r Record) {
 }
 
 func Totals(i Index, q Query, r Record) {
-	if ok, _ := matchLineages(r, q); ok {
+	if ok, _ := matchLineages(r, q.Lineages); ok {
 		dateCounts, ok := i[r.Date]
 		if !ok {
 			dateCounts = make(map[string]int)
@@ -88,12 +88,10 @@ func Totals(i Index, q Query, r Record) {
 }
 
 func Spatiotemporal(i Index, q Query, r Record) {
-	for _, p := range q.Excluding {
-		if strings.HasPrefix(r.PangoClade, p) {
-			return
-		}
+	if ok, _ := matchLineages(r, q.Excluding); ok {
+		return
 	}
-	if ok, _ := matchLineages(r, q); ok {
+	if ok, _ := matchLineages(r, q.Lineages); ok {
 		dateCounts, ok := i[r.Date]
 		if !ok {
 			dateCounts = make(map[string]int)

@@ -49,12 +49,6 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 				Mutations:  mutations,
 			}
 		}
-		if _, ok := index[lineage]; len(mutations) > 0 && !ok {
-			index[lineage] = covince.QueryLineage{
-				Key:        lineage,
-				PangoClade: lineage + ".",
-			}
-		}
 	}
 	parsedLineages := make([]covince.QueryLineage, len(index))
 	i := 0
@@ -102,15 +96,11 @@ func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 	}
 	if excluding, ok := qs["excluding"]; ok {
 		excluding = strings.Split(excluding[0], ",")
-		for i, lineage := range excluding {
-			if len(lineage) == 0 {
-				continue
-			}
-			if !isPangoLineage.MatchString(lineage) {
-				return q, fmt.Errorf("invalid lineages")
-			}
-			excluding[i] = lineage + "."
+		excluding, err := parseLineages(excluding)
+		if err != nil {
+			return q, err
 		}
+		q.Excluding = excluding
 	}
 	return q, nil
 }
