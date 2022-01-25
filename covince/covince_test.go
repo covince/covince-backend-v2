@@ -156,9 +156,9 @@ func TestLineages(t *testing.T) {
 			Lineages(m, q, r)
 		}
 		assert.Equal(t, map[string]int{
-			"B":     1,
-			"B.1":   2,
-			"B.1.2": 3,
+			"B.":     1,
+			"B.1.":   2,
+			"B.1.2.": 3,
 		}, m)
 	})
 
@@ -169,7 +169,7 @@ func TestLineages(t *testing.T) {
 			Lineages(m, q, r)
 		}
 		assert.Equal(t, map[string]int{
-			"B": 1,
+			"B.": 1,
 		}, m)
 	})
 
@@ -180,8 +180,8 @@ func TestLineages(t *testing.T) {
 			Lineages(m, q, r)
 		}
 		assert.Equal(t, map[string]int{
-			"B.1":   2,
-			"B.1.2": 3,
+			"B.1.":   2,
+			"B.1.2.": 3,
 		}, m)
 	})
 
@@ -192,8 +192,8 @@ func TestLineages(t *testing.T) {
 			Lineages(m, q, r)
 		}
 		assert.Equal(t, map[string]int{
-			"B":   1,
-			"B.1": 2,
+			"B.":   1,
+			"B.1.": 2,
 		}, m)
 	})
 }

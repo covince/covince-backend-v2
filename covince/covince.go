@@ -103,7 +103,7 @@ func Spatiotemporal(i Index, q Query, r Record) {
 
 func Lineages(m map[string]int, q Query, r Record) {
 	if matchMetadata(r, q) {
-		m[r.Lineage] += r.Count
+		m[r.PangoClade] += r.Count
 	}
 }
 
