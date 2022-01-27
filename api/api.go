@@ -71,7 +71,7 @@ func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 	} else if lineages, ok := qs["lineages"]; ok {
 		lineages = strings.Split(lineages[0], ",")
 		if len(lineages) > maxLineages {
-			return q, fmt.Errorf("too many lineages")
+			return q, fmt.Errorf("too many lineages, maximum is %v", maxLineages)
 		}
 		p, err := parseLineages(lineages)
 		if err != nil {

@@ -17,8 +17,10 @@ const PANGO_SEPARATOR = "."
 func (s SortLineagesForQuery) Less(i, j int) bool {
 	a := s[i]
 	b := s[j]
-	if a.PangoClade == b.PangoClade {
+	depthA := strings.Count(a.PangoClade, PANGO_SEPARATOR)
+	depthB := strings.Count(b.PangoClade, PANGO_SEPARATOR)
+	if depthA == depthB {
 		return len(a.Mutations) > len(b.Mutations)
 	}
-	return strings.Count(a.PangoClade, PANGO_SEPARATOR) > strings.Count(b.PangoClade, PANGO_SEPARATOR)
+	return depthA > depthB
 }
