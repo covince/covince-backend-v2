@@ -27,6 +27,7 @@ type Query struct {
 	Area      string
 	DateFrom  string
 	DateTo    string
+	Search    string
 }
 
 func matchLineages(r Record, lineages []QueryLineage) (bool, string) {
@@ -104,6 +105,23 @@ func Spatiotemporal(i Index, q Query, r Record) {
 func Lineages(m map[string]int, q Query, r Record) {
 	if matchMetadata(r, q) {
 		m[r.PangoClade] += r.Count
+	}
+}
+
+func Mutations(m map[string]int, q Query, r Record) {
+	if matchMetadata(r, q) {
+		if ok, _ := matchLineages(r, q.Lineages); ok {
+			j := 0
+			for {
+				i := strings.Index(r.Mutations[j:], q.Search) + 1
+				if i == 0 {
+					break
+				}
+				j = i + strings.Index(r.Mutations[i:], "|")
+				mut := r.Mutations[i:j]
+				m[mut] += r.Count
+			}
+		}
 	}
 }
 

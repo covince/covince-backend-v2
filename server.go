@@ -20,7 +20,7 @@ func createRecordFromCsv(row []string) covince.Record {
 		Lineage:    row[1],
 		PangoClade: row[2],
 		Area:       row[3],
-		Mutations:  row[4],
+		Mutations:  "|" + row[4] + "|",
 		Count:      count,
 	}
 }
@@ -105,8 +105,8 @@ func serverless(filePath string) http.HandlerFunc {
 
 func main() {
 	filePath := "aggregated.csv"
-	urlPath := "/api/raw"
-	http.HandleFunc("/api/raw/", server(filePath, urlPath))
+	urlPath := "/api"
+	http.HandleFunc("/api/", server(filePath, urlPath))
 	// http.HandleFunc("/", serverless(filePath))
 
 	http.ListenAndServe(":4000", nil)

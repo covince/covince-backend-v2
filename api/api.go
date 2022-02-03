@@ -102,6 +102,12 @@ func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 		}
 		q.Excluding = excluding
 	}
+	if search, ok := qs["search"]; ok {
+		if len(search[0]) > 24 {
+			return q, fmt.Errorf("search string too long")
+		}
+		q.Search = "|" + search[0]
+	}
 	return q, nil
 }
 
@@ -120,6 +126,8 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 			http.Error(rw, err.Error(), http.StatusBadRequest)
 			return
 		}
+
+		fmt.Println(q)
 
 		var response interface{}
 
@@ -159,6 +167,13 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 			m := make(map[string]int)
 			foreach(func(r covince.Record) {
 				covince.Lineages(m, q, r)
+			})
+			response = m
+		}
+		if r.URL.Path == opts.PathPrefix+"/mutations" {
+			m := make(map[string]int)
+			foreach(func(r covince.Record) {
+				covince.Mutations(m, q, r)
 			})
 			response = m
 		}
