@@ -11,7 +11,23 @@ import (
 
 	"github.com/covince/covince-backend-v2/api"
 	"github.com/covince/covince-backend-v2/covince"
+	"github.com/covince/covince-backend-v2/perf"
 )
+
+func indexMutations(muts []string) map[string][]string {
+	i := make(map[string][]string)
+	for _, m := range muts {
+		split := strings.Split(m, ":")
+		gene := split[0]
+		description := split[1]
+		existing, ok := i[gene]
+		if !ok {
+			existing = make([]string, 0)
+		}
+		i[gene] = append(existing, description)
+	}
+	return i
+}
 
 func createRecordFromCsv(row []string) covince.Record {
 	count, _ := strconv.Atoi(row[5])
@@ -20,7 +36,7 @@ func createRecordFromCsv(row []string) covince.Record {
 		Lineage:    row[1],
 		PangoClade: row[2],
 		Area:       row[3],
-		Mutations:  "|" + row[4] + "|",
+		Mutations:  indexMutations(strings.Split(row[4], "|")),
 		Count:      count,
 	}
 }
@@ -104,10 +120,15 @@ func serverless(filePath string) http.HandlerFunc {
 }
 
 func main() {
+	start := time.Now()
+
 	filePath := "aggregated.csv"
 	urlPath := "/api"
 	http.HandleFunc("/api/", server(filePath, urlPath))
 	// http.HandleFunc("/", serverless(filePath))
+
+	perf.LogDuration("startup", start)
+	perf.LogMemory()
 
 	http.ListenAndServe(":4000", nil)
 }

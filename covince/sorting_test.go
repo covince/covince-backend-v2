@@ -9,7 +9,7 @@ import (
 
 func TestSorting(t *testing.T) {
 	q := []QueryLineage{
-		{Key: "B+B", PangoClade: "B.", Mutations: []string{"B"}},
+		{Key: "B+B:B", PangoClade: "B.", Mutations: []QueryMutation{{Gene: "B", Description: "B"}}},
 		{Key: "B", PangoClade: "B."},
 		{Key: "B.1", PangoClade: "B.1."},
 	}
@@ -18,7 +18,7 @@ func TestSorting(t *testing.T) {
 
 	assert.Equal(t, []QueryLineage{
 		{Key: "B.1", PangoClade: "B.1."},
-		{Key: "B+B", PangoClade: "B.", Mutations: []string{"B"}},
+		{Key: "B+B:B", PangoClade: "B.", Mutations: []QueryMutation{{Gene: "B", Description: "B"}}},
 		{Key: "B", PangoClade: "B."},
 	}, q)
 }

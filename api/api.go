@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/covince/covince-backend-v2/covince"
+	"github.com/covince/covince-backend-v2/perf"
 )
 
 type Opts struct {
@@ -24,6 +24,17 @@ type Opts struct {
 var isPangoLineage = regexp.MustCompile(`^[A-Z]{1,3}(\.[0-9]+)*$`)
 var isDateString = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
 
+func parseMutation(s string) (covince.QueryMutation, error) {
+	var qm covince.QueryMutation
+	split := strings.Split(s, ":")
+	if len(split) == 1 {
+		return qm, fmt.Errorf("invalid mutation: %v", s)
+	}
+	qm.Gene = split[0]
+	qm.Description = split[1]
+	return qm, nil
+}
+
 func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 	index := make(map[string]covince.QueryLineage)
 	for _, v := range lineages {
@@ -32,12 +43,16 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 		}
 		split := strings.Split(v, "+")
 		lineage := split[0]
-		mutations := split[1:]
-		for i, m := range mutations {
+		mutations := make([]covince.QueryMutation, 0)
+		for i, m := range split[1:] {
 			if i > 1 {
 				break
 			}
-			mutations[i] = "|" + m + "|"
+			qm, err := parseMutation(m)
+			if err != nil {
+				return nil, err
+			}
+			mutations = append(mutations, qm)
 		}
 		if !isPangoLineage.MatchString(split[0]) {
 			return nil, fmt.Errorf("invalid lineages")
@@ -106,7 +121,11 @@ func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 		if len(search[0]) > 24 {
 			return q, fmt.Errorf("search string too long")
 		}
-		q.Search = "|" + search[0]
+		m, err := parseMutation(search[0])
+		if err != nil {
+			return q, err
+		}
+		q.Mutation = m
 	}
 	return q, nil
 }
@@ -182,19 +201,7 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 		rw.WriteHeader(http.StatusOK)
 		json.NewEncoder(rw).Encode(response)
 
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-		fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-		fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-		fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-		fmt.Printf("\tNumGC = %v\n", m.NumGC)
-
-		duration := time.Since(start)
-		log.Println(r.URL.Path, "took", duration.Milliseconds(), "ms")
+		perf.LogMemory()
+		perf.LogDuration(r.URL.Path, start)
 	}
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }

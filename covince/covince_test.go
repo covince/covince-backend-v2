@@ -7,9 +7,9 @@ import (
 )
 
 var testRecords = []Record{
-	{Lineage: "B", PangoClade: "B.", Date: "2020-09-01", Area: "A", Count: 1, Mutations: "|A:A|"},
-	{Lineage: "B.1", PangoClade: "B.1.", Date: "2020-10-01", Area: "B", Count: 2, Mutations: "|A:A|B:B|"},
-	{Lineage: "B.1.2", PangoClade: "B.1.2.", Date: "2020-11-01", Area: "C", Count: 3, Mutations: "|A:A|B:B|C:C|"},
+	{Lineage: "B", PangoClade: "B.", Date: "2020-09-01", Area: "A", Count: 1, Mutations: map[string][]string{"A": {"A"}}},
+	{Lineage: "B.1", PangoClade: "B.1.", Date: "2020-10-01", Area: "B", Count: 2, Mutations: map[string][]string{"A": {"A"}, "B": {"B"}}},
+	{Lineage: "B.1.2", PangoClade: "B.1.2.", Date: "2020-11-01", Area: "C", Count: 3, Mutations: map[string][]string{"A": {"A"}, "B": {"B"}, "C": {"C"}}},
 }
 
 func TestFrequency(t *testing.T) {
@@ -53,7 +53,9 @@ func TestFrequency(t *testing.T) {
 		i = Index{}
 		q = Query{
 			Lineages: []QueryLineage{
-				{Key: "B+B", PangoClade: "B.", Mutations: []string{"|B:B|"}},
+				{Key: "B+B:B", PangoClade: "B.", Mutations: []QueryMutation{
+					{Gene: "B", Description: "B"},
+				}},
 				{Key: "B", PangoClade: "B."},
 			},
 		}
@@ -62,8 +64,8 @@ func TestFrequency(t *testing.T) {
 		}
 		assert.Equal(t, Index{
 			"2020-09-01": {"B": 1},
-			"2020-10-01": {"B+B": 2},
-			"2020-11-01": {"B+B": 3},
+			"2020-10-01": {"B+B:B": 2},
+			"2020-11-01": {"B+B:B": 3},
 		}, i)
 	})
 }
@@ -134,7 +136,9 @@ func TestSpatiotemporal(t *testing.T) {
 		i = Index{}
 		q = Query{
 			Lineages: []QueryLineage{
-				{Key: "B.1", PangoClade: "B.1.", Mutations: []string{"|C:C|"}},
+				{Key: "B.1", PangoClade: "B.1.", Mutations: []QueryMutation{
+					{Gene: "C", Description: "C"},
+				}},
 			},
 		}
 		for _, r := range testRecords {
@@ -215,7 +219,10 @@ func TestMutations(t *testing.T) {
 
 	t.Run("A", func(t *testing.T) {
 		m = map[string]int{}
-		q = Query{Search: "|A:"}
+		q = Query{
+			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
+			Mutation: QueryMutation{Gene: "A", Description: "A"},
+		}
 		for _, r := range testRecords {
 			Mutations(m, q, r)
 		}
@@ -226,7 +233,9 @@ func TestMutations(t *testing.T) {
 
 	t.Run("B", func(t *testing.T) {
 		m = map[string]int{}
-		q = Query{Search: "|B:"}
+		q = Query{
+			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
+			Mutation: QueryMutation{Gene: "B", Description: "B"}}
 		for _, r := range testRecords {
 			Mutations(m, q, r)
 		}
@@ -237,7 +246,9 @@ func TestMutations(t *testing.T) {
 
 	t.Run("C", func(t *testing.T) {
 		m = map[string]int{}
-		q = Query{Search: "|C:"}
+		q = Query{
+			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
+			Mutation: QueryMutation{Gene: "C", Description: "C"}}
 		for _, r := range testRecords {
 			Mutations(m, q, r)
 		}
