@@ -9,20 +9,21 @@ type Record struct {
 	Lineage    string
 	PangoClade string
 	Area       string
-	Mutations  map[string][]string // map of genes to descriptions
+	Mutations  []*Mutation
 	Count      int
+}
+
+type Mutation struct {
+	Prefix string
+	Suffix string
 }
 
 type Index map[string]map[string]int
 
-type QueryMutation struct {
-	Gene        string
-	Description string
-}
 type QueryLineage struct {
 	Key        string
 	PangoClade string
-	Mutations  []QueryMutation
+	Mutations  []Mutation
 }
 
 type Query struct {
@@ -31,7 +32,7 @@ type Query struct {
 	Area      string
 	DateFrom  string
 	DateTo    string
-	Mutation  QueryMutation
+	Mutation  Mutation
 }
 
 func matchLineages(r Record, lineages []QueryLineage) (bool, string) {
@@ -39,14 +40,12 @@ func matchLineages(r Record, lineages []QueryLineage) (bool, string) {
 		if strings.HasPrefix(r.PangoClade, ql.PangoClade) {
 			if len(ql.Mutations) > 0 {
 				hasMuts := true
-				for _, m := range ql.Mutations {
+				for _, qm := range ql.Mutations {
 					match := false
-					if descriptions, ok := r.Mutations[m.Gene]; ok {
-						for _, d := range descriptions {
-							if d == m.Description {
-								match = true
-								break
-							}
+					for _, m := range r.Mutations {
+						if qm.Prefix == m.Prefix && qm.Suffix == m.Suffix {
+							match = true
+							break
 						}
 					}
 					if !match {
@@ -124,12 +123,10 @@ func Lineages(m map[string]int, q Query, r Record) {
 func Mutations(m map[string]int, q Query, r Record) {
 	if matchMetadata(r, q) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
-			mut := q.Mutation
-			if descriptions, ok := r.Mutations[mut.Gene]; ok {
-				for _, d := range descriptions {
-					if strings.Contains(d, mut.Description) {
-						m[mut.Gene+":"+d] += r.Count
-					}
+			qm := q.Mutation
+			for _, rm := range r.Mutations {
+				if qm.Prefix == rm.Prefix && strings.Contains(rm.Suffix, qm.Suffix) {
+					m[qm.Prefix+":"+rm.Suffix] += r.Count
 				}
 			}
 		}

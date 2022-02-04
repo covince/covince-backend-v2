@@ -7,9 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var mut = Mutation{Prefix: "B", Suffix: "B"}
+
 func TestSorting(t *testing.T) {
 	q := []QueryLineage{
-		{Key: "B+B:B", PangoClade: "B.", Mutations: []QueryMutation{{Gene: "B", Description: "B"}}},
+		{Key: "B+B:B", PangoClade: "B.", Mutations: []Mutation{mut}},
 		{Key: "B", PangoClade: "B."},
 		{Key: "B.1", PangoClade: "B.1."},
 	}
@@ -18,7 +20,7 @@ func TestSorting(t *testing.T) {
 
 	assert.Equal(t, []QueryLineage{
 		{Key: "B.1", PangoClade: "B.1."},
-		{Key: "B+B:B", PangoClade: "B.", Mutations: []QueryMutation{{Gene: "B", Description: "B"}}},
+		{Key: "B+B:B", PangoClade: "B.", Mutations: []Mutation{mut}},
 		{Key: "B", PangoClade: "B."},
 	}, q)
 }

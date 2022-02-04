@@ -6,10 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var testMutations = []Mutation{
+	{Prefix: "A", Suffix: "A"},
+	{Prefix: "B", Suffix: "B"},
+	{Prefix: "C", Suffix: "C"},
+}
+
 var testRecords = []Record{
-	{Lineage: "B", PangoClade: "B.", Date: "2020-09-01", Area: "A", Count: 1, Mutations: map[string][]string{"A": {"A"}}},
-	{Lineage: "B.1", PangoClade: "B.1.", Date: "2020-10-01", Area: "B", Count: 2, Mutations: map[string][]string{"A": {"A"}, "B": {"B"}}},
-	{Lineage: "B.1.2", PangoClade: "B.1.2.", Date: "2020-11-01", Area: "C", Count: 3, Mutations: map[string][]string{"A": {"A"}, "B": {"B"}, "C": {"C"}}},
+	{Lineage: "B", PangoClade: "B.", Date: "2020-09-01", Area: "A", Count: 1, Mutations: []*Mutation{&testMutations[0]}},
+	{Lineage: "B.1", PangoClade: "B.1.", Date: "2020-10-01", Area: "B", Count: 2, Mutations: []*Mutation{&testMutations[0], &testMutations[1]}},
+	{Lineage: "B.1.2", PangoClade: "B.1.2.", Date: "2020-11-01", Area: "C", Count: 3, Mutations: []*Mutation{&testMutations[0], &testMutations[1], &testMutations[2]}},
 }
 
 func TestFrequency(t *testing.T) {
@@ -53,8 +59,8 @@ func TestFrequency(t *testing.T) {
 		i = Index{}
 		q = Query{
 			Lineages: []QueryLineage{
-				{Key: "B+B:B", PangoClade: "B.", Mutations: []QueryMutation{
-					{Gene: "B", Description: "B"},
+				{Key: "B+B:B", PangoClade: "B.", Mutations: []Mutation{
+					{Prefix: "B", Suffix: "B"},
 				}},
 				{Key: "B", PangoClade: "B."},
 			},
@@ -136,8 +142,8 @@ func TestSpatiotemporal(t *testing.T) {
 		i = Index{}
 		q = Query{
 			Lineages: []QueryLineage{
-				{Key: "B.1", PangoClade: "B.1.", Mutations: []QueryMutation{
-					{Gene: "C", Description: "C"},
+				{Key: "B.1", PangoClade: "B.1.", Mutations: []Mutation{
+					{Prefix: "C", Suffix: "C"},
 				}},
 			},
 		}
@@ -221,7 +227,7 @@ func TestMutations(t *testing.T) {
 		m = map[string]int{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
-			Mutation: QueryMutation{Gene: "A", Description: "A"},
+			Mutation: Mutation{Prefix: "A", Suffix: "A"},
 		}
 		for _, r := range testRecords {
 			Mutations(m, q, r)
@@ -235,7 +241,7 @@ func TestMutations(t *testing.T) {
 		m = map[string]int{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
-			Mutation: QueryMutation{Gene: "B", Description: "B"}}
+			Mutation: Mutation{Prefix: "B", Suffix: "B"}}
 		for _, r := range testRecords {
 			Mutations(m, q, r)
 		}
@@ -248,7 +254,7 @@ func TestMutations(t *testing.T) {
 		m = map[string]int{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
-			Mutation: QueryMutation{Gene: "C", Description: "C"}}
+			Mutation: Mutation{Prefix: "C", Suffix: "C"}}
 		for _, r := range testRecords {
 			Mutations(m, q, r)
 		}

@@ -14,31 +14,48 @@ import (
 	"github.com/covince/covince-backend-v2/perf"
 )
 
-func indexMutations(muts []string) map[string][]string {
-	i := make(map[string][]string)
-	for _, m := range muts {
-		split := strings.Split(m, ":")
-		gene := split[0]
-		description := split[1]
-		existing, ok := i[gene]
-		if !ok {
-			existing = make([]string, 0)
-		}
-		i[gene] = append(existing, description)
-	}
-	return i
+type Database struct {
+	Mutations      []covince.Mutation
+	MutationLookup map[string]int
+	Records        []covince.Record
 }
 
-func createRecordFromCsv(row []string) covince.Record {
-	count, _ := strconv.Atoi(row[5])
-	return covince.Record{
-		Date:       row[0],
-		Lineage:    row[1],
-		PangoClade: row[2],
-		Area:       row[3],
-		Mutations:  indexMutations(strings.Split(row[4], "|")),
-		Count:      count,
+func indexMutations(db *Database, muts []string) []*covince.Mutation {
+	ptrs := make([]*covince.Mutation, len(muts))
+	for i, m := range muts {
+		var j int
+		var ok bool
+		if j, ok = db.MutationLookup[m]; !ok {
+			j = len(db.Mutations)
+			db.MutationLookup[m] = j
+
+			split := strings.Split(m, ":")
+			db.Mutations = append(
+				db.Mutations,
+				covince.Mutation{
+					Prefix: split[0],
+					Suffix: split[1],
+				},
+			)
+		}
+		ptrs[i] = &db.Mutations[j]
 	}
+	return ptrs
+}
+
+func addRecordToDatabase(db *Database, row []string) {
+	count, _ := strconv.Atoi(row[5])
+	db.Records = append(
+		db.Records,
+		covince.Record{
+			Date:       row[0],
+			Lineage:    row[1],
+			PangoClade: row[2],
+			Area:       row[3],
+			Mutations:  indexMutations(db, strings.Split(row[4], "|")),
+			Count:      count,
+		},
+	)
 }
 
 func server(filePath string, urlPath string) http.HandlerFunc {
@@ -51,14 +68,20 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 		log.Fatalln("Couldn't stat the csv file", err)
 	}
 	scanner := bufio.NewScanner(csvfile)
-	s := make([]covince.Record, 0)
+	db := Database{
+		Mutations:      make([]covince.Mutation, 0),
+		MutationLookup: make(map[string]int),
+		Records:        make([]covince.Record, 0),
+	}
 
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		r := createRecordFromCsv(row)
-		s = append(s, r)
+		addRecordToDatabase(&db, row)
 	}
-	log.Println(len(s), "records")
+	log.Println(len(db.Records), "records")
+	for k := range db.MutationLookup {
+		delete(db.MutationLookup, k)
+	}
 
 	opts := api.Opts{
 		PathPrefix:  urlPath,
@@ -71,7 +94,7 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 	return api.CovinceAPI(opts, func(agg func(r covince.Record)) {
 		start := time.Now()
 		log.Println("Start aggregation")
-		for _, r := range s {
+		for _, r := range db.Records {
 			agg(r)
 		}
 		duration := time.Since(start)
@@ -79,45 +102,45 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 	})
 }
 
-func serverless(filePath string) http.HandlerFunc {
-	opts := api.Opts{
-		MaxLineages: 16,
-		GetLastModified: func() int64 {
-			csvfile, err := os.Open(filePath)
-			if err != nil {
-				log.Fatalln("Couldn't open the csv file", err)
-			}
-			stat, err := csvfile.Stat()
-			if err != nil {
-				log.Fatalln("Couldn't stat the csv file", err)
-			}
-			return stat.ModTime().UnixMilli()
-		},
-	}
+// func serverless(filePath string) http.HandlerFunc {
+// 	opts := api.Opts{
+// 		MaxLineages: 16,
+// 		GetLastModified: func() int64 {
+// 			csvfile, err := os.Open(filePath)
+// 			if err != nil {
+// 				log.Fatalln("Couldn't open the csv file", err)
+// 			}
+// 			stat, err := csvfile.Stat()
+// 			if err != nil {
+// 				log.Fatalln("Couldn't stat the csv file", err)
+// 			}
+// 			return stat.ModTime().UnixMilli()
+// 		},
+// 	}
 
-	return api.CovinceAPI(opts, func(agg func(r covince.Record)) {
-		csvfile, err := os.Open(filePath)
-		if err != nil {
-			log.Fatalln("Couldn't open the csv file", err)
-		}
-		c := make(chan covince.Record, 500)
-		done := make(chan bool)
-		go func() {
-			for r := range c {
-				agg(r)
-			}
-			done <- true
-		}()
+// 	return api.CovinceAPI(opts, func(agg func(r covince.Record)) {
+// 		csvfile, err := os.Open(filePath)
+// 		if err != nil {
+// 			log.Fatalln("Couldn't open the csv file", err)
+// 		}
+// 		c := make(chan covince.Record, 500)
+// 		done := make(chan bool)
+// 		go func() {
+// 			for r := range c {
+// 				agg(r)
+// 			}
+// 			done <- true
+// 		}()
 
-		scanner := bufio.NewScanner(csvfile)
-		for scanner.Scan() {
-			row := strings.Split(scanner.Text(), ",")
-			c <- createRecordFromCsv(row)
-		}
-		close(c)
-		<-done
-	})
-}
+// 		scanner := bufio.NewScanner(csvfile)
+// 		for scanner.Scan() {
+// 			row := strings.Split(scanner.Text(), ",")
+// 			c <- createRecordFromCsv(row)
+// 		}
+// 		close(c)
+// 		<-done
+// 	})
+// }
 
 func main() {
 	start := time.Now()

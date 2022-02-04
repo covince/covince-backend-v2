@@ -24,15 +24,15 @@ type Opts struct {
 var isPangoLineage = regexp.MustCompile(`^[A-Z]{1,3}(\.[0-9]+)*$`)
 var isDateString = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
 
-func parseMutation(s string) (covince.QueryMutation, error) {
-	var qm covince.QueryMutation
+func parseMutation(s string) (covince.Mutation, error) {
+	var m covince.Mutation
 	split := strings.Split(s, ":")
 	if len(split) == 1 {
-		return qm, fmt.Errorf("invalid mutation: %v", s)
+		return m, fmt.Errorf("invalid mutation: %v", s)
 	}
-	qm.Gene = split[0]
-	qm.Description = split[1]
-	return qm, nil
+	m.Prefix = split[0]
+	m.Suffix = split[1]
+	return m, nil
 }
 
 func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
@@ -43,16 +43,16 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 		}
 		split := strings.Split(v, "+")
 		lineage := split[0]
-		mutations := make([]covince.QueryMutation, 0)
+		mutations := make([]covince.Mutation, 0)
 		for i, m := range split[1:] {
 			if i > 1 {
 				break
 			}
-			qm, err := parseMutation(m)
+			parsed, err := parseMutation(m)
 			if err != nil {
 				return nil, err
 			}
-			mutations = append(mutations, qm)
+			mutations = append(mutations, parsed)
 		}
 		if !isPangoLineage.MatchString(split[0]) {
 			return nil, fmt.Errorf("invalid lineages")
@@ -145,8 +145,6 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 			http.Error(rw, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		fmt.Println(q)
 
 		var response interface{}
 
