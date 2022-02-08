@@ -24,18 +24,26 @@ type Opts struct {
 var isPangoLineage = regexp.MustCompile(`^[A-Z]{1,3}(\.[0-9]+)*$`)
 var isDateString = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
 
-func parseMutation(s string) (covince.Mutation, error) {
+func parseMutation(s string, genes *map[string]bool) (covince.Mutation, error) {
 	var m covince.Mutation
 	split := strings.Split(s, ":")
 	if len(split) == 1 || len(split[1]) == 0 {
 		return m, fmt.Errorf("invalid mutation: %v", s)
 	}
-	m.Prefix = split[0]
+	for gene, _ := range *genes {
+		if gene == split[0] {
+			m.Prefix = gene
+			break
+		}
+	}
+	if m.Prefix == "" {
+		return m, fmt.Errorf("invalid gene: %v", split[0])
+	}
 	m.Suffix = split[1]
 	return m, nil
 }
 
-func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
+func parseLineages(lineages []string, genes *map[string]bool) ([]covince.QueryLineage, error) {
 	index := make(map[string]covince.QueryLineage)
 	for _, v := range lineages {
 		if len(v) == 0 {
@@ -48,7 +56,7 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 			if i > 1 {
 				break
 			}
-			parsed, err := parseMutation(m)
+			parsed, err := parseMutation(m, genes)
 			if err != nil {
 				return nil, err
 			}
@@ -75,10 +83,10 @@ func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
 	return parsedLineages, nil
 }
 
-func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
+func parseQuery(qs url.Values, genes *map[string]bool, maxLineages int) (covince.Query, error) {
 	var q covince.Query
 	if lineage, ok := qs["lineage"]; ok {
-		p, err := parseLineages(lineage)
+		p, err := parseLineages(lineage, genes)
 		if err != nil {
 			return q, err
 		}
@@ -88,7 +96,7 @@ func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 		if len(lineages) > maxLineages {
 			return q, fmt.Errorf("too many lineages, maximum is %v", maxLineages)
 		}
-		p, err := parseLineages(lineages)
+		p, err := parseLineages(lineages, genes)
 		if err != nil {
 			return q, err
 		}
@@ -111,7 +119,7 @@ func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 	}
 	if excluding, ok := qs["excluding"]; ok {
 		excluding = strings.Split(excluding[0], ",")
-		excluding, err := parseLineages(excluding)
+		excluding, err := parseLineages(excluding, genes)
 		if err != nil {
 			return q, err
 		}
@@ -121,7 +129,7 @@ func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 		if len(search[0]) > 24 {
 			return q, fmt.Errorf("search string too long")
 		}
-		m, err := parseMutation(search[0])
+		m, err := parseMutation(search[0], genes)
 		if err != nil {
 			return q, err
 		}
@@ -130,7 +138,14 @@ func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
 	return q, nil
 }
 
-func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFunc {
+func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[string]bool) http.HandlerFunc {
+	uniqueGenes := make([]string, len(genes))
+	i := 0
+	for k, _ := range genes {
+		uniqueGenes[i] = k
+		i++
+	}
+
 	return func(rw http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		log.Println("Handle request")
@@ -140,7 +155,7 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 			return
 		}
 		qs := r.URL.Query()
-		q, err := parseQuery(qs, opts.MaxLineages)
+		q, err := parseQuery(qs, &genes, opts.MaxLineages)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusBadRequest)
 			return
@@ -156,41 +171,42 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 			m["areas"] = areas
 			m["lastModified"] = opts.GetLastModified()
 			m["maxLineages"] = opts.MaxLineages
+			m["genes"] = uniqueGenes
 
 			response = m
 		}
 		if r.URL.Path == opts.PathPrefix+"/frequency" {
 			i := make(covince.Index)
-			foreach(func(r covince.Record) {
-				covince.Frequency(i, q, r)
+			foreach(func(r *covince.Record) {
+				covince.Frequency(i, &q, r)
 			})
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/spatiotemporal/total" {
 			i := make(covince.Index)
-			foreach(func(r covince.Record) {
-				covince.Totals(i, q, r)
+			foreach(func(r *covince.Record) {
+				covince.Totals(i, &q, r)
 			})
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/spatiotemporal/lineage" {
 			i := make(covince.Index)
-			foreach(func(r covince.Record) {
-				covince.Spatiotemporal(i, q, r)
+			foreach(func(r *covince.Record) {
+				covince.Spatiotemporal(i, &q, r)
 			})
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/lineages" {
 			m := make(map[string]int)
-			foreach(func(r covince.Record) {
-				covince.Lineages(m, q, r)
+			foreach(func(r *covince.Record) {
+				covince.Lineages(m, &q, r)
 			})
 			response = m
 		}
 		if r.URL.Path == opts.PathPrefix+"/mutations" {
 			m := make(map[string]int)
-			foreach(func(r covince.Record) {
-				covince.Mutations(m, q, r)
+			foreach(func(r *covince.Record) {
+				covince.Mutations(m, &q, r)
 			})
 			response = m
 		}

@@ -35,7 +35,7 @@ type Query struct {
 	Mutation  Mutation
 }
 
-func matchLineages(r Record, lineages []QueryLineage) (bool, string) {
+func matchLineages(r *Record, lineages []QueryLineage) (bool, string) {
 	for _, ql := range lineages {
 		if strings.HasPrefix(r.PangoClade, ql.PangoClade) {
 			if len(ql.Mutations) > 0 {
@@ -63,7 +63,7 @@ func matchLineages(r Record, lineages []QueryLineage) (bool, string) {
 	return false, ""
 }
 
-func matchMetadata(r Record, q Query) bool {
+func matchMetadata(r *Record, q *Query) bool {
 	if q.Area != "" && q.Area != "overview" && r.Area != q.Area {
 		return false
 	}
@@ -76,7 +76,7 @@ func matchMetadata(r Record, q Query) bool {
 	return true
 }
 
-func Frequency(i Index, q Query, r Record) {
+func Frequency(i Index, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		if ok, key := matchLineages(r, q.Lineages); ok {
 			dateCounts, ok := i[r.Date]
@@ -89,7 +89,7 @@ func Frequency(i Index, q Query, r Record) {
 	}
 }
 
-func Totals(i Index, q Query, r Record) {
+func Totals(i Index, q *Query, r *Record) {
 	if ok, _ := matchLineages(r, q.Lineages); ok {
 		dateCounts, ok := i[r.Date]
 		if !ok {
@@ -100,7 +100,7 @@ func Totals(i Index, q Query, r Record) {
 	}
 }
 
-func Spatiotemporal(i Index, q Query, r Record) {
+func Spatiotemporal(i Index, q *Query, r *Record) {
 	if ok, _ := matchLineages(r, q.Excluding); ok {
 		return
 	}
@@ -114,13 +114,13 @@ func Spatiotemporal(i Index, q Query, r Record) {
 	}
 }
 
-func Lineages(m map[string]int, q Query, r Record) {
+func Lineages(m map[string]int, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		m[r.PangoClade] += r.Count
 	}
 }
 
-func Mutations(m map[string]int, q Query, r Record) {
+func Mutations(m map[string]int, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
 			qm := q.Mutation
@@ -133,11 +133,11 @@ func Mutations(m map[string]int, q Query, r Record) {
 	}
 }
 
-func Info(foreach func(func(r Record))) ([]string, []string) {
+func Info(foreach func(func(r *Record))) ([]string, []string) {
 	dates := make(map[string]bool)
 	areas := make(map[string]bool)
 
-	foreach(func(r Record) {
+	foreach(func(r *Record) {
 		dates[r.Date] = true
 		areas[r.Area] = true
 	})
