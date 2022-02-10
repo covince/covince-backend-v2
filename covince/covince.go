@@ -35,6 +35,11 @@ type Query struct {
 	Mutation  Mutation
 }
 
+type SearchResult struct {
+	Key   string
+	Count int
+}
+
 func matchLineages(r *Record, lineages []QueryLineage) (bool, string) {
 	for _, ql := range lineages {
 		if strings.HasPrefix(r.PangoClade, ql.PangoClade) {
@@ -120,13 +125,18 @@ func Lineages(m map[string]int, q *Query, r *Record) {
 	}
 }
 
-func Mutations(m map[string]int, q *Query, r *Record) {
+func Mutations(m map[string]*SearchResult, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
 			qm := q.Mutation
 			for _, rm := range r.Mutations {
 				if qm.Prefix == rm.Prefix && strings.Contains(rm.Suffix, qm.Suffix) {
-					m[qm.Prefix+":"+rm.Suffix] += r.Count
+					key := qm.Prefix + ":" + rm.Suffix
+					if sr, ok := m[key]; ok {
+						sr.Count += r.Count
+					} else {
+						m[key] = &SearchResult{Key: key, Count: r.Count}
+					}
 				}
 			}
 		}

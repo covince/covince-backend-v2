@@ -30,7 +30,7 @@ func TestFrequency(t *testing.T) {
 			},
 		}
 		for _, r := range testRecords {
-			Frequency(i, q, r)
+			Frequency(i, &q, &r)
 		}
 		assert.Equal(t, Index{
 			"2020-09-01": {"B": 1},
@@ -48,7 +48,7 @@ func TestFrequency(t *testing.T) {
 			Area: "A",
 		}
 		for _, r := range testRecords {
-			Frequency(i, q, r)
+			Frequency(i, &q, &r)
 		}
 		assert.Equal(t, Index{
 			"2020-09-01": {"B": 1},
@@ -66,7 +66,7 @@ func TestFrequency(t *testing.T) {
 			},
 		}
 		for _, r := range testRecords {
-			Frequency(i, q, r)
+			Frequency(i, &q, &r)
 		}
 		assert.Equal(t, Index{
 			"2020-09-01": {"B": 1},
@@ -88,7 +88,7 @@ func TestTotals(t *testing.T) {
 			},
 		}
 		for _, r := range testRecords {
-			Totals(i, q, r)
+			Totals(i, &q, &r)
 		}
 		assert.Equal(t, Index{
 			"2020-09-01": {"A": 1},
@@ -110,7 +110,7 @@ func TestSpatiotemporal(t *testing.T) {
 			},
 		}
 		for _, r := range testRecords {
-			Spatiotemporal(i, q, r)
+			Spatiotemporal(i, &q, &r)
 		}
 		assert.Equal(t, Index{
 			"2020-09-01": {"A": 1},
@@ -130,7 +130,7 @@ func TestSpatiotemporal(t *testing.T) {
 			},
 		}
 		for _, r := range testRecords {
-			Spatiotemporal(i, q, r)
+			Spatiotemporal(i, &q, &r)
 		}
 		assert.Equal(t, Index{
 			"2020-09-01": {"A": 1},
@@ -148,7 +148,7 @@ func TestSpatiotemporal(t *testing.T) {
 			},
 		}
 		for _, r := range testRecords {
-			Spatiotemporal(i, q, r)
+			Spatiotemporal(i, &q, &r)
 		}
 		assert.Equal(t, Index{
 			"2020-11-01": {"C": 3},
@@ -163,7 +163,7 @@ func TestLineages(t *testing.T) {
 	t.Run("Unfiltered", func(t *testing.T) {
 		m = map[string]int{}
 		for _, r := range testRecords {
-			Lineages(m, q, r)
+			Lineages(m, &q, &r)
 		}
 		assert.Equal(t, map[string]int{
 			"B.":     1,
@@ -176,7 +176,7 @@ func TestLineages(t *testing.T) {
 		m = map[string]int{}
 		q = Query{Area: "A"}
 		for _, r := range testRecords {
-			Lineages(m, q, r)
+			Lineages(m, &q, &r)
 		}
 		assert.Equal(t, map[string]int{
 			"B.": 1,
@@ -187,7 +187,7 @@ func TestLineages(t *testing.T) {
 		m = map[string]int{}
 		q = Query{DateFrom: "2020-10-01"}
 		for _, r := range testRecords {
-			Lineages(m, q, r)
+			Lineages(m, &q, &r)
 		}
 		assert.Equal(t, map[string]int{
 			"B.1.":   2,
@@ -199,7 +199,7 @@ func TestLineages(t *testing.T) {
 		m = map[string]int{}
 		q = Query{DateTo: "2020-10-01"}
 		for _, r := range testRecords {
-			Lineages(m, q, r)
+			Lineages(m, &q, &r)
 		}
 		assert.Equal(t, map[string]int{
 			"B.":   1,
@@ -209,9 +209,9 @@ func TestLineages(t *testing.T) {
 }
 
 func TestInfo(t *testing.T) {
-	foreach := func(agg func(r Record)) {
+	foreach := func(agg func(r *Record)) {
 		for _, r := range testRecords {
-			agg(r)
+			agg(&r)
 		}
 	}
 	dates, areas := Info(foreach)
@@ -220,46 +220,40 @@ func TestInfo(t *testing.T) {
 }
 
 func TestMutations(t *testing.T) {
-	var m map[string]int
+	var m map[string]*SearchResult
 	var q Query
 
 	t.Run("A", func(t *testing.T) {
-		m = map[string]int{}
+		m = map[string]*SearchResult{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Mutation: Mutation{Prefix: "A", Suffix: "A"},
 		}
 		for _, r := range testRecords {
-			Mutations(m, q, r)
+			Mutations(m, &q, &r)
 		}
-		assert.Equal(t, map[string]int{
-			"A:A": 6,
-		}, m)
+		assert.Equal(t, 6, m["A:A"].Count)
 	})
 
 	t.Run("B", func(t *testing.T) {
-		m = map[string]int{}
+		m = map[string]*SearchResult{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Mutation: Mutation{Prefix: "B", Suffix: "B"}}
 		for _, r := range testRecords {
-			Mutations(m, q, r)
+			Mutations(m, &q, &r)
 		}
-		assert.Equal(t, map[string]int{
-			"B:B": 5,
-		}, m)
+		assert.Equal(t, 5, m["B:B"].Count)
 	})
 
 	t.Run("C", func(t *testing.T) {
-		m = map[string]int{}
+		m = map[string]*SearchResult{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Mutation: Mutation{Prefix: "C", Suffix: "C"}}
 		for _, r := range testRecords {
-			Mutations(m, q, r)
+			Mutations(m, &q, &r)
 		}
-		assert.Equal(t, map[string]int{
-			"C:C": 3,
-		}, m)
+		assert.Equal(t, 3, m["C:C"].Count)
 	})
 }

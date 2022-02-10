@@ -4,13 +4,8 @@ import "strings"
 
 type SortLineagesForQuery []QueryLineage
 
-func (s SortLineagesForQuery) Len() int {
-	return len(s)
-}
-
-func (s SortLineagesForQuery) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
+func (s SortLineagesForQuery) Len() int      { return len(s) }
+func (s SortLineagesForQuery) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 const PANGO_SEPARATOR = "."
 
