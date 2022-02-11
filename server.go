@@ -15,6 +15,8 @@ import (
 )
 
 type Database struct {
+	Count          int
+	Genes          map[string]bool
 	Mutations      []covince.Mutation
 	MutationLookup map[string]int
 	Records        []covince.Record
@@ -30,10 +32,16 @@ func indexMutations(db *Database, muts []string) []*covince.Mutation {
 			db.MutationLookup[m] = j
 
 			split := strings.Split(m, ":")
+			prefix := split[0]
+
+			if _, ok = db.Genes[prefix]; !ok {
+				db.Genes[prefix] = true
+			}
+
 			db.Mutations = append(
 				db.Mutations,
 				covince.Mutation{
-					Prefix: split[0],
+					Prefix: prefix,
 					Suffix: split[1],
 				},
 			)
@@ -48,10 +56,10 @@ func addRecordToDatabase(db *Database, row []string) {
 	db.Records = append(
 		db.Records,
 		covince.Record{
-			Date:       row[0],
-			Lineage:    row[1],
-			PangoClade: row[2],
-			Area:       row[3],
+			Area:       row[0],
+			Date:       row[1],
+			Lineage:    row[2],
+			PangoClade: row[3],
 			Mutations:  indexMutations(db, strings.Split(row[4], "|")),
 			Count:      count,
 		},
@@ -89,17 +97,18 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 		GetLastModified: func() int64 {
 			return stat.ModTime().UnixMilli()
 		},
+		NumSearchResults: 32,
 	}
 
-	return api.CovinceAPI(opts, func(agg func(r covince.Record)) {
+	foreach := func(agg func(r *covince.Record)) {
 		start := time.Now()
-		log.Println("Start aggregation")
 		for _, r := range db.Records {
-			agg(r)
+			agg(&r)
 		}
-		duration := time.Since(start)
-		log.Println("Aggregation took:", duration.Milliseconds(), "ms")
-	})
+		perf.LogDuration("Aggregation", start)
+	}
+
+	return api.CovinceAPI(opts, foreach, db.Genes)
 }
 
 // func serverless(filePath string) http.HandlerFunc {
