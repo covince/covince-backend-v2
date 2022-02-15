@@ -18,13 +18,29 @@ type Opts struct {
 	NumSearchResults int
 }
 
-func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[string]bool) http.HandlerFunc {
+func getInfo(opts Opts, foreach func(func(r *covince.Record)), genes map[string]bool) map[string]interface{} {
+	m := make(map[string]interface{})
+
+	m["lastModified"] = opts.GetLastModified()
+	m["maxLineages"] = opts.MaxLineages
+
+	dates, areas := covince.Info(foreach)
+	m["dates"] = dates
+	m["areas"] = areas
+
 	uniqueGenes := make([]string, len(genes))
 	i := 0
 	for k := range genes {
 		uniqueGenes[i] = k
 		i++
 	}
+	m["genes"] = uniqueGenes
+
+	return m
+}
+
+func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[string]bool) http.HandlerFunc {
+	cachedInfo := getInfo(opts, foreach, genes)
 
 	return func(rw http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -44,16 +60,7 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 		var response interface{}
 
 		if r.URL.Path == opts.PathPrefix+"/info" {
-			dates, areas := covince.Info(foreach)
-
-			m := make(map[string]interface{})
-			m["dates"] = dates
-			m["areas"] = areas
-			m["lastModified"] = opts.GetLastModified()
-			m["maxLineages"] = opts.MaxLineages
-			m["genes"] = uniqueGenes
-
-			response = m
+			response = cachedInfo
 		}
 		if r.URL.Path == opts.PathPrefix+"/frequency" {
 			i := make(covince.Index)
