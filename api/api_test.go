@@ -7,9 +7,11 @@ import (
 )
 
 func TestParseQuery(t *testing.T) {
+	g := map[string]bool{"S": true}
+
 	t.Run("can parse mutations", func(t *testing.T) {
 		qs := url.Values{"lineages": {"B+S:V36F"}}
-		q, err := parseQuery(qs, 16)
+		q, err := parseQuery(qs, &g, 16)
 		if err != nil {
 			t.Error(err)
 		}
@@ -17,7 +19,7 @@ func TestParseQuery(t *testing.T) {
 	})
 	t.Run("can parse empty lineages", func(t *testing.T) {
 		qs := url.Values{"lineages": {""}}
-		_, err := parseQuery(qs, 16)
+		_, err := parseQuery(qs, &g, 16)
 		if err != nil {
 			t.Error(err)
 		}
