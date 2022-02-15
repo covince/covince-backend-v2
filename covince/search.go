@@ -14,35 +14,57 @@ func min(a, b int) int {
 	return b
 }
 
-type SortByCount []*SearchResult
+type SortByCount []*MutationSearch
 
-func (s SortByCount) Len() int           { return len(s) }
 func (s SortByCount) Less(i, j int) bool { return s[i].Count < s[j].Count }
+func (s SortByCount) Len() int           { return len(s) }
 func (s SortByCount) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func SearchMutations(foreach func(func(r *Record)), q *Query, skip int, limit int, sortOrder string) map[string]int {
-	m := make(map[string]*SearchResult)
+type SortByName []*MutationSearch
+
+func (s SortByName) Less(i, j int) bool { return s[i].Key < s[j].Key }
+func (s SortByName) Len() int           { return len(s) }
+func (s SortByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+type SearchResult struct {
+	Total int               `json:"total"`
+	Page  []*MutationSearch `json:"page"`
+}
+
+func SearchMutations(foreach func(func(r *Record)), q *Query, skip int, limit int, sortProperty string, sortDirection string) SearchResult {
+	m := make(map[string]*MutationSearch)
 	foreach(func(r *Record) {
 		Mutations(m, q, r)
 	})
 	startSort := time.Now()
-	results := make([]*SearchResult, 0)
+	ms := make([]*MutationSearch, len(m))
+	i := 0
 	for _, sr := range m {
-		results = append(results, sr)
+		ms[i] = sr
+		i++
 	}
-	if sortOrder == "asc" {
-		sort.Sort(SortByCount(results))
+	var sorter sort.Interface
+	if sortProperty == "name" {
+		sorter = SortByName(ms)
 	} else {
-		sort.Sort(sort.Reverse(SortByCount(results)))
+		sorter = SortByCount(ms)
 	}
-	m2 := make(map[string]int)
-	i := skip
-	end := min(skip+limit, len(results))
+	if sortDirection == "asc" {
+		sort.Sort(sorter)
+	} else {
+		sort.Sort(sort.Reverse(sorter))
+	}
+	result := SearchResult{
+		Total: len(ms),
+		Page:  make([]*MutationSearch, limit),
+	}
+	i = skip
+	end := min(skip+limit, len(ms))
 	for i < end {
-		sr := results[i]
-		m2[sr.Key] = sr.Count
+		sr := ms[i]
+		result.Page[i-skip] = sr
 		i++
 	}
 	perf.LogDuration("sorting", startSort)
-	return m2
+	return result
 }

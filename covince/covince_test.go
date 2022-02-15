@@ -220,11 +220,11 @@ func TestInfo(t *testing.T) {
 }
 
 func TestMutations(t *testing.T) {
-	var m map[string]*SearchResult
+	var m map[string]*MutationSearch
 	var q Query
 
 	t.Run("A", func(t *testing.T) {
-		m = map[string]*SearchResult{}
+		m = map[string]*MutationSearch{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Mutation: Mutation{Prefix: "A", Suffix: "A"},
@@ -236,7 +236,7 @@ func TestMutations(t *testing.T) {
 	})
 
 	t.Run("B", func(t *testing.T) {
-		m = map[string]*SearchResult{}
+		m = map[string]*MutationSearch{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Mutation: Mutation{Prefix: "B", Suffix: "B"}}
@@ -247,7 +247,7 @@ func TestMutations(t *testing.T) {
 	})
 
 	t.Run("C", func(t *testing.T) {
-		m = map[string]*SearchResult{}
+		m = map[string]*MutationSearch{}
 		q = Query{
 			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Mutation: Mutation{Prefix: "C", Suffix: "C"}}

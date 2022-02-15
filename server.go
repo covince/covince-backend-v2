@@ -97,7 +97,7 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 		GetLastModified: func() int64 {
 			return stat.ModTime().UnixMilli()
 		},
-		NumSearchResults: 32,
+		MaxSearchResults: 32,
 	}
 
 	foreach := func(agg func(r *covince.Record)) {

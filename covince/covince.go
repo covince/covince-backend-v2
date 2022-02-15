@@ -35,9 +35,9 @@ type Query struct {
 	Mutation  Mutation
 }
 
-type SearchResult struct {
-	Key   string
-	Count int
+type MutationSearch struct {
+	Key   string `json:"key"`
+	Count int    `json:"count"`
 }
 
 func matchLineages(r *Record, lineages []QueryLineage) (bool, string) {
@@ -125,17 +125,17 @@ func Lineages(m map[string]int, q *Query, r *Record) {
 	}
 }
 
-func Mutations(m map[string]*SearchResult, q *Query, r *Record) {
+func Mutations(m map[string]*MutationSearch, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
 			qm := q.Mutation
 			for _, rm := range r.Mutations {
 				if qm.Prefix == rm.Prefix && strings.Contains(rm.Suffix, qm.Suffix) {
-					key := qm.Prefix + ":" + rm.Suffix
+					key := rm.Prefix + ":" + rm.Suffix
 					if sr, ok := m[key]; ok {
 						sr.Count += r.Count
 					} else {
-						m[key] = &SearchResult{Key: key, Count: r.Count}
+						m[key] = &MutationSearch{Key: key, Count: r.Count}
 					}
 				}
 			}

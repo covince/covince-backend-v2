@@ -15,7 +15,7 @@ type Opts struct {
 	PathPrefix       string
 	MaxLineages      int
 	GetLastModified  func() int64
-	NumSearchResults int
+	MaxSearchResults int
 }
 
 func getInfo(opts Opts, foreach func(func(r *covince.Record)), genes map[string]bool) map[string]interface{} {
@@ -90,6 +90,7 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 			})
 			response = m
 		}
+
 		if r.URL.Path == opts.PathPrefix+"/mutations" {
 			skip := 0
 			if _skip, ok := qs["skip"]; ok {
@@ -98,17 +99,21 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 					skip = i
 				}
 			}
-			limit := 10
-			if opts.NumSearchResults > 0 {
-				limit = opts.NumSearchResults
+			limit := opts.MaxSearchResults
+			if opts.MaxSearchResults > 0 {
+				limit = opts.MaxSearchResults
 			}
-			sort := "desc"
+			sort := "count"
 			if _sort, ok := qs["sort"]; ok {
-				if _sort[0] == "asc" {
-					sort = _sort[0]
+				sort = _sort[0]
+			}
+			dir := "desc"
+			if _dir, ok := qs["direction"]; ok {
+				if _dir[0] == "asc" {
+					dir = _dir[0]
 				}
 			}
-			response = covince.SearchMutations(foreach, &q, skip, limit, sort)
+			response = covince.SearchMutations(foreach, &q, skip, limit, sort, dir)
 		}
 
 		rw.Header().Set("Content-Type", "application/json")
