@@ -14,6 +14,7 @@ type Record struct {
 }
 
 type Mutation struct {
+	Key    string
 	Prefix string
 	Suffix string
 }
@@ -131,11 +132,10 @@ func Mutations(m map[string]*MutationSearch, q *Query, r *Record) {
 			qm := q.Mutation
 			for _, rm := range r.Mutations {
 				if qm.Prefix == rm.Prefix && strings.Contains(rm.Suffix, qm.Suffix) {
-					key := rm.Prefix + ":" + rm.Suffix
-					if sr, ok := m[key]; ok {
+					if sr, ok := m[rm.Key]; ok {
 						sr.Count += r.Count
 					} else {
-						m[key] = &MutationSearch{Key: key, Count: r.Count}
+						m[rm.Key] = &MutationSearch{Key: rm.Key, Count: r.Count}
 					}
 				}
 			}
