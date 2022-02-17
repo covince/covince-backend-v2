@@ -111,7 +111,7 @@ func parseQuery(qs url.Values, genes *map[string]bool, maxLineages int) (covince
 		}
 		q.Excluding = excluding
 	}
-	if search, ok := qs["search"]; ok {
+	if search, ok := qs["search"]; ok && len(search[0]) > 0 {
 		if len(search[0]) > 24 {
 			return q, fmt.Errorf("search string too long")
 		}

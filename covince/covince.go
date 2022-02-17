@@ -131,7 +131,7 @@ func Mutations(m map[string]*MutationSearch, q *Query, r *Record) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
 			qm := q.Mutation
 			for _, rm := range r.Mutations {
-				if qm.Prefix == rm.Prefix && strings.Contains(rm.Suffix, qm.Suffix) {
+				if qm.Prefix == "" || (qm.Prefix == rm.Prefix && strings.Contains(rm.Suffix, qm.Suffix)) {
 					if sr, ok := m[rm.Key]; ok {
 						sr.Count += r.Count
 					} else {

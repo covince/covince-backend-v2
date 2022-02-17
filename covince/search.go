@@ -1,6 +1,7 @@
 package covince
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -36,6 +37,7 @@ func SearchMutations(foreach func(func(r *Record)), q *Query, skip int, limit in
 	foreach(func(r *Record) {
 		Mutations(m, q, r)
 	})
+	fmt.Println("num muts:", len(m))
 	startSort := time.Now()
 	ms := make([]*MutationSearch, len(m))
 	i := 0
