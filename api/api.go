@@ -100,8 +100,11 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 				}
 			}
 			limit := opts.MaxSearchResults
-			if opts.MaxSearchResults > 0 {
-				limit = opts.MaxSearchResults
+			if _limit, ok := qs["limit"]; ok {
+				i, err := strconv.Atoi(_limit[0])
+				if err == nil {
+					limit = i
+				}
 			}
 			sort := "count"
 			if _sort, ok := qs["sort"]; ok {
