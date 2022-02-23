@@ -28,12 +28,13 @@ type QueryLineage struct {
 }
 
 type Query struct {
-	Lineages  []QueryLineage
-	Excluding []QueryLineage
-	Area      string
-	DateFrom  string
-	DateTo    string
-	Mutation  Mutation
+	Lineages     []QueryLineage
+	Excluding    []QueryLineage
+	Area         string
+	DateFrom     string
+	DateTo       string
+	Prefix       string
+	SuffixFilter string
 }
 
 type MutationSearch struct {
@@ -129,9 +130,8 @@ func Lineages(m map[string]int, q *Query, r *Record) {
 func Mutations(m map[string]*MutationSearch, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
-			qm := q.Mutation
 			for _, rm := range r.Mutations {
-				if qm.Prefix == "" || (qm.Prefix == rm.Prefix && strings.Contains(rm.Suffix, qm.Suffix)) {
+				if (q.Prefix == "" || q.Prefix == rm.Prefix) && (q.SuffixFilter == "" || strings.Contains(rm.Suffix, q.SuffixFilter)) {
 					if sr, ok := m[rm.Key]; ok {
 						sr.Count += r.Count
 					} else {

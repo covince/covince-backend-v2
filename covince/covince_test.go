@@ -7,9 +7,9 @@ import (
 )
 
 var testMutations = []Mutation{
-	{Prefix: "A", Suffix: "A"},
-	{Prefix: "B", Suffix: "B"},
-	{Prefix: "C", Suffix: "C"},
+	{Key: "A:A", Prefix: "A", Suffix: "A"},
+	{Key: "B:B", Prefix: "B", Suffix: "B"},
+	{Key: "C:C", Prefix: "C", Suffix: "C"},
 }
 
 var testRecords = []Record{
@@ -226,8 +226,9 @@ func TestMutations(t *testing.T) {
 	t.Run("A", func(t *testing.T) {
 		m = map[string]*MutationSearch{}
 		q = Query{
-			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
-			Mutation: Mutation{Prefix: "A", Suffix: "A"},
+			Lineages:     []QueryLineage{{Key: "B", PangoClade: "B."}},
+			Prefix:       "A",
+			SuffixFilter: "A",
 		}
 		for _, r := range testRecords {
 			Mutations(m, &q, &r)
@@ -238,8 +239,9 @@ func TestMutations(t *testing.T) {
 	t.Run("B", func(t *testing.T) {
 		m = map[string]*MutationSearch{}
 		q = Query{
-			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
-			Mutation: Mutation{Prefix: "B", Suffix: "B"}}
+			Lineages:     []QueryLineage{{Key: "B", PangoClade: "B."}},
+			Prefix:       "B",
+			SuffixFilter: "B"}
 		for _, r := range testRecords {
 			Mutations(m, &q, &r)
 		}
@@ -249,8 +251,9 @@ func TestMutations(t *testing.T) {
 	t.Run("C", func(t *testing.T) {
 		m = map[string]*MutationSearch{}
 		q = Query{
-			Lineages: []QueryLineage{{Key: "B", PangoClade: "B."}},
-			Mutation: Mutation{Prefix: "C", Suffix: "C"}}
+			Lineages:     []QueryLineage{{Key: "B", PangoClade: "B."}},
+			Prefix:       "C",
+			SuffixFilter: "C"}
 		for _, r := range testRecords {
 			Mutations(m, &q, &r)
 		}

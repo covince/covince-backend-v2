@@ -111,15 +111,22 @@ func parseQuery(qs url.Values, genes *map[string]bool, maxLineages int) (covince
 		}
 		q.Excluding = excluding
 	}
-	if search, ok := qs["search"]; ok && len(search[0]) > 0 {
-		if len(search[0]) > 24 {
-			return q, fmt.Errorf("search string too long")
+	if gene, ok := qs["gene"]; ok && len(gene[0]) > 0 {
+		for g := range *genes {
+			if g == gene[0] {
+				q.Prefix = g
+				break
+			}
 		}
-		m, err := parseMutation(search[0], genes)
-		if err != nil {
-			return q, err
+		if q.Prefix == "" {
+			return q, fmt.Errorf("gene not recognised")
 		}
-		q.Mutation = m
+	}
+	if filter, ok := qs["filter"]; ok && len(filter[0]) > 0 {
+		if len(filter[0]) > 24 {
+			return q, fmt.Errorf("filter string too long")
+		}
+		q.SuffixFilter = filter[0]
 	}
 	return q, nil
 }
