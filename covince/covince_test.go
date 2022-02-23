@@ -221,42 +221,49 @@ func TestInfo(t *testing.T) {
 
 func TestMutations(t *testing.T) {
 	var m map[string]*MutationSearch
+	var total MutationSearch
 	var q Query
 
 	t.Run("A", func(t *testing.T) {
 		m = map[string]*MutationSearch{}
+		total = MutationSearch{}
 		q = Query{
 			Lineages:     []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Prefix:       "A",
 			SuffixFilter: "A",
 		}
 		for _, r := range testRecords {
-			Mutations(m, &q, &r)
+			Mutations(m, &total, &q, &r)
 		}
 		assert.Equal(t, 6, m["A:A"].Count)
+		assert.Equal(t, 3, total.Count)
 	})
 
 	t.Run("B", func(t *testing.T) {
 		m = map[string]*MutationSearch{}
+		total = MutationSearch{}
 		q = Query{
 			Lineages:     []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Prefix:       "B",
 			SuffixFilter: "B"}
 		for _, r := range testRecords {
-			Mutations(m, &q, &r)
+			Mutations(m, &total, &q, &r)
 		}
 		assert.Equal(t, 5, m["B:B"].Count)
+		assert.Equal(t, 3, total.Count)
 	})
 
 	t.Run("C", func(t *testing.T) {
 		m = map[string]*MutationSearch{}
+		total = MutationSearch{}
 		q = Query{
 			Lineages:     []QueryLineage{{Key: "B", PangoClade: "B."}},
 			Prefix:       "C",
 			SuffixFilter: "C"}
 		for _, r := range testRecords {
-			Mutations(m, &q, &r)
+			Mutations(m, &total, &q, &r)
 		}
 		assert.Equal(t, 3, m["C:C"].Count)
+		assert.Equal(t, 3, total.Count)
 	})
 }

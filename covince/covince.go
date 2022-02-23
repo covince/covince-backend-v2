@@ -127,9 +127,10 @@ func Lineages(m map[string]int, q *Query, r *Record) {
 	}
 }
 
-func Mutations(m map[string]*MutationSearch, q *Query, r *Record) {
+func Mutations(m map[string]*MutationSearch, total *MutationSearch, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
+			total.Count += r.Count
 			for _, rm := range r.Mutations {
 				if (q.Prefix == "" || q.Prefix == rm.Prefix) && (q.SuffixFilter == "" || strings.Contains(rm.Suffix, q.SuffixFilter)) {
 					if sr, ok := m[rm.Key]; ok {

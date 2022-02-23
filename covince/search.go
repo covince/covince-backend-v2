@@ -28,14 +28,16 @@ func (s SortByName) Len() int           { return len(s) }
 func (s SortByName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 type SearchResult struct {
-	Total int               `json:"total"`
-	Page  []*MutationSearch `json:"page"`
+	TotalRows    int               `json:"total_rows"`
+	TotalRecords int               `json:"total_records"`
+	Page         []*MutationSearch `json:"page"`
 }
 
 func SearchMutations(foreach func(func(r *Record)), q *Query, skip int, limit int, sortProperty string, sortDirection string) SearchResult {
 	m := make(map[string]*MutationSearch)
+	totalRecords := MutationSearch{}
 	foreach(func(r *Record) {
-		Mutations(m, q, r)
+		Mutations(m, &totalRecords, q, r)
 	})
 	fmt.Println("num muts:", len(m))
 	startSort := time.Now()
@@ -57,8 +59,9 @@ func SearchMutations(foreach func(func(r *Record)), q *Query, skip int, limit in
 		sort.Sort(sort.Reverse(sorter))
 	}
 	result := SearchResult{
-		Total: len(ms),
-		Page:  make([]*MutationSearch, limit),
+		TotalRows:    len(ms),
+		TotalRecords: totalRecords.Count,
+		Page:         make([]*MutationSearch, limit),
 	}
 	i = skip
 	end := min(skip+limit, len(ms))
