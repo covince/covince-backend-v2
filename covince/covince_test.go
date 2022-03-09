@@ -12,10 +12,14 @@ var testMutations = []Mutation{
 	{Key: "C:C", Prefix: "C", Suffix: "C"},
 }
 
+func value(s string) *Value {
+	return &Value{Value: s}
+}
+
 var testRecords = []Record{
-	{Lineage: "B", PangoClade: "B.", Date: "2020-09-01", Area: "A", Count: 1, Mutations: []*Mutation{&testMutations[0]}},
-	{Lineage: "B.1", PangoClade: "B.1.", Date: "2020-10-01", Area: "B", Count: 2, Mutations: []*Mutation{&testMutations[0], &testMutations[1]}},
-	{Lineage: "B.1.2", PangoClade: "B.1.2.", Date: "2020-11-01", Area: "C", Count: 3, Mutations: []*Mutation{&testMutations[0], &testMutations[1], &testMutations[2]}},
+	{PangoClade: value("B."), Date: value("2020-09-01"), Area: value("A"), Count: 1, Mutations: []*Mutation{&testMutations[0]}},
+	{PangoClade: value("B.1."), Date: value("2020-10-01"), Area: value("B"), Count: 2, Mutations: []*Mutation{&testMutations[0], &testMutations[1]}},
+	{PangoClade: value("B.1.2."), Date: value("2020-11-01"), Area: value("C"), Count: 3, Mutations: []*Mutation{&testMutations[0], &testMutations[1], &testMutations[2]}},
 }
 
 func TestFrequency(t *testing.T) {
@@ -236,7 +240,7 @@ func TestMutations(t *testing.T) {
 			Mutations(m, &total, &q, &r)
 		}
 		assert.Equal(t, 6, m["A:A"].Count)
-		assert.Equal(t, 3, total.Count)
+		assert.Equal(t, 6, total.Count)
 	})
 
 	t.Run("B", func(t *testing.T) {
@@ -250,7 +254,7 @@ func TestMutations(t *testing.T) {
 			Mutations(m, &total, &q, &r)
 		}
 		assert.Equal(t, 5, m["B:B"].Count)
-		assert.Equal(t, 3, total.Count)
+		assert.Equal(t, 6, total.Count)
 	})
 
 	t.Run("C", func(t *testing.T) {
@@ -264,6 +268,6 @@ func TestMutations(t *testing.T) {
 			Mutations(m, &total, &q, &r)
 		}
 		assert.Equal(t, 3, m["C:C"].Count)
-		assert.Equal(t, 3, total.Count)
+		assert.Equal(t, 6, total.Count)
 	})
 }

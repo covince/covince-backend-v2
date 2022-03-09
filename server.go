@@ -20,6 +20,8 @@ type Database struct {
 	Mutations      []covince.Mutation
 	MutationLookup map[string]int
 	Records        []covince.Record
+	Values         []covince.Value
+	ValueLookup    map[string]int
 }
 
 func indexMutations(db *Database, muts []string) []*covince.Mutation {
@@ -51,15 +53,26 @@ func indexMutations(db *Database, muts []string) []*covince.Mutation {
 	return ptrs
 }
 
+func indexValue(db *Database, s string) *covince.Value {
+	var i int
+	var ok bool
+	if i, ok = db.ValueLookup[s]; !ok {
+		i = len(db.Values)
+		db.ValueLookup[s] = i
+		db.Values = append(db.Values, covince.Value{Value: s})
+	}
+	return &db.Values[i]
+}
+
 func addRecordToDatabase(db *Database, row []string) {
 	count, _ := strconv.Atoi(row[5])
 	db.Records = append(
 		db.Records,
 		covince.Record{
-			Area:       row[0],
-			Date:       row[1],
-			Lineage:    row[2],
-			PangoClade: row[3],
+			Area: indexValue(db, row[0]),
+			Date: indexValue(db, row[1]),
+			// Lineage:    indexValue(db, row[2]),
+			PangoClade: indexValue(db, row[3]),
 			Mutations:  indexMutations(db, strings.Split(row[4], "|")),
 			Count:      count,
 		},
@@ -77,9 +90,9 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 	}
 	scanner := bufio.NewScanner(csvfile)
 	db := Database{
-		Mutations:      make([]covince.Mutation, 0),
+		Genes:          make(map[string]bool),
 		MutationLookup: make(map[string]int),
-		Records:        make([]covince.Record, 0),
+		ValueLookup:    make(map[string]int),
 	}
 
 	for scanner.Scan() {

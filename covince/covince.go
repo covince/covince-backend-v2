@@ -4,11 +4,26 @@ import (
 	"strings"
 )
 
+// type Metadata struct {
+// 	Date string
+// 	Area string
+// }
+
+// type Lineage struct {
+// 	Alias string
+// 	Clade string
+// }
+
+type Value struct {
+	Value string
+}
+
 type Record struct {
-	Date       string
-	Lineage    string
-	PangoClade string
-	Area       string
+	// Metadata *Metadata
+	Date *Value
+	// Lineage    string
+	PangoClade *Value
+	Area       *Value
 	Mutations  []*Mutation
 	Count      int
 }
@@ -44,7 +59,7 @@ type MutationSearch struct {
 
 func matchLineages(r *Record, lineages []QueryLineage) (bool, string) {
 	for _, ql := range lineages {
-		if strings.HasPrefix(r.PangoClade, ql.PangoClade) {
+		if strings.HasPrefix(r.PangoClade.Value, ql.PangoClade) {
 			if len(ql.Mutations) > 0 {
 				hasMuts := true
 				for _, qm := range ql.Mutations {
@@ -71,13 +86,13 @@ func matchLineages(r *Record, lineages []QueryLineage) (bool, string) {
 }
 
 func matchMetadata(r *Record, q *Query) bool {
-	if q.Area != "" && q.Area != "overview" && r.Area != q.Area {
+	if q.Area != "" && q.Area != "overview" && r.Area.Value != q.Area {
 		return false
 	}
-	if q.DateFrom != "" && r.Date < q.DateFrom {
+	if q.DateFrom != "" && r.Date.Value < q.DateFrom {
 		return false
 	}
-	if q.DateTo != "" && r.Date > q.DateTo {
+	if q.DateTo != "" && r.Date.Value > q.DateTo {
 		return false
 	}
 	return true
@@ -86,10 +101,10 @@ func matchMetadata(r *Record, q *Query) bool {
 func Frequency(i Index, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		if ok, key := matchLineages(r, q.Lineages); ok {
-			dateCounts, ok := i[r.Date]
+			dateCounts, ok := i[r.Date.Value]
 			if !ok {
 				dateCounts = make(map[string]int)
-				i[r.Date] = dateCounts
+				i[r.Date.Value] = dateCounts
 			}
 			dateCounts[key] += r.Count
 		}
@@ -98,12 +113,12 @@ func Frequency(i Index, q *Query, r *Record) {
 
 func Totals(i Index, q *Query, r *Record) {
 	if ok, _ := matchLineages(r, q.Lineages); ok {
-		dateCounts, ok := i[r.Date]
+		dateCounts, ok := i[r.Date.Value]
 		if !ok {
 			dateCounts = make(map[string]int)
-			i[r.Date] = dateCounts
+			i[r.Date.Value] = dateCounts
 		}
-		dateCounts[r.Area] += r.Count
+		dateCounts[r.Area.Value] += r.Count
 	}
 }
 
@@ -112,18 +127,18 @@ func Spatiotemporal(i Index, q *Query, r *Record) {
 		return
 	}
 	if ok, _ := matchLineages(r, q.Lineages); ok {
-		dateCounts, ok := i[r.Date]
+		dateCounts, ok := i[r.Date.Value]
 		if !ok {
 			dateCounts = make(map[string]int)
-			i[r.Date] = dateCounts
+			i[r.Date.Value] = dateCounts
 		}
-		dateCounts[r.Area] += r.Count
+		dateCounts[r.Area.Value] += r.Count
 	}
 }
 
 func Lineages(m map[string]int, q *Query, r *Record) {
 	if matchMetadata(r, q) {
-		m[r.PangoClade] += r.Count
+		m[r.PangoClade.Value] += r.Count
 	}
 }
 
@@ -149,8 +164,8 @@ func Info(foreach func(func(r *Record))) ([]string, []string) {
 	areas := make(map[string]bool)
 
 	foreach(func(r *Record) {
-		dates[r.Date] = true
-		areas[r.Area] = true
+		dates[r.Date.Value] = true
+		areas[r.Area.Value] = true
 	})
 
 	dateArray := make([]string, len(dates))
