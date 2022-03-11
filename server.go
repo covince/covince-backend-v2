@@ -14,66 +14,16 @@ import (
 	"github.com/covince/covince-backend-v2/perf"
 )
 
-type Database struct {
-	Count          int
-	Genes          map[string]bool
-	Mutations      []covince.Mutation
-	MutationLookup map[string]int
-	Records        []covince.Record
-	Values         []covince.Value
-	ValueLookup    map[string]int
-}
-
-func indexMutations(db *Database, muts []string) []*covince.Mutation {
-	ptrs := make([]*covince.Mutation, len(muts))
-	for i, m := range muts {
-		var j int
-		var ok bool
-		if j, ok = db.MutationLookup[m]; !ok {
-			j = len(db.Mutations)
-			db.MutationLookup[m] = j
-
-			split := strings.Split(m, ":")
-			prefix := split[0]
-
-			if _, ok = db.Genes[prefix]; !ok {
-				db.Genes[prefix] = true
-			}
-
-			db.Mutations = append(
-				db.Mutations,
-				covince.Mutation{
-					Prefix: prefix,
-					Suffix: split[1],
-				},
-			)
-		}
-		ptrs[i] = &db.Mutations[j]
-	}
-	return ptrs
-}
-
-func indexValue(db *Database, s string) *covince.Value {
-	var i int
-	var ok bool
-	if i, ok = db.ValueLookup[s]; !ok {
-		i = len(db.Values)
-		db.ValueLookup[s] = i
-		db.Values = append(db.Values, covince.Value{Value: s})
-	}
-	return &db.Values[i]
-}
-
-func addRecordToDatabase(db *Database, row []string) {
+func addRecordToDatabase(db *covince.Database, row []string) {
 	count, _ := strconv.Atoi(row[5])
 	db.Records = append(
 		db.Records,
 		covince.Record{
-			Area: indexValue(db, row[0]),
-			Date: indexValue(db, row[1]),
-			// Lineage:    indexValue(db, row[2]),
-			PangoClade: indexValue(db, row[3]),
-			Mutations:  indexMutations(db, strings.Split(row[4], "|")),
+			Area: db.IndexValue(row[0]),
+			Date: db.IndexValue(row[1]),
+			// Lineage:    db.IndexValue(row[2]),
+			PangoClade: db.IndexValue(row[3]),
+			Mutations:  db.IndexMutations(strings.Split(row[4], "|")),
 			Count:      count,
 		},
 	)
@@ -89,15 +39,11 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 		log.Fatalln("Couldn't stat the csv file", err)
 	}
 	scanner := bufio.NewScanner(csvfile)
-	db := Database{
-		Genes:          make(map[string]bool),
-		MutationLookup: make(map[string]int),
-		ValueLookup:    make(map[string]int),
-	}
+	db := covince.CreateDatabase()
 
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
-		addRecordToDatabase(&db, row)
+		addRecordToDatabase(db, row)
 	}
 	log.Println(len(db.Records), "records")
 	for k := range db.MutationLookup {

@@ -4,36 +4,6 @@ import (
 	"strings"
 )
 
-// type Metadata struct {
-// 	Date string
-// 	Area string
-// }
-
-// type Lineage struct {
-// 	Alias string
-// 	Clade string
-// }
-
-type Value struct {
-	Value string
-}
-
-type Record struct {
-	// Metadata *Metadata
-	Date *Value
-	// Lineage    string
-	PangoClade *Value
-	Area       *Value
-	Mutations  []*Mutation
-	Count      int
-}
-
-type Mutation struct {
-	Key    string
-	Prefix string
-	Suffix string
-}
-
 type Index map[string]map[string]int
 
 type QueryLineage struct {
