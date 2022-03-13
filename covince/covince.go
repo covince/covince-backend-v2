@@ -113,6 +113,9 @@ func Lineages(m map[string]int, q *Query, r *Record) {
 }
 
 func Mutations(m map[string]*MutationSearch, total *MutationSearch, q *Query, r *Record) {
+	if ok, _ := matchLineages(r, q.Excluding); ok {
+		return
+	}
 	if matchMetadata(r, q) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
 			total.Count += r.Count
