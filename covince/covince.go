@@ -23,8 +23,11 @@ type Query struct {
 }
 
 type MutationSearch struct {
-	Key   string `json:"key"`
-	Count int    `json:"count"`
+	Key         string  `json:"key"`
+	Count       int     `json:"count"`
+	Growth      float32 `json:"growth"`
+	growthStart int
+	growthEnd   int
 }
 
 func matchLineages(r *Record, lineages []QueryLineage) (bool, string) {
@@ -112,19 +115,32 @@ func Lineages(m map[string]int, q *Query, r *Record) {
 	}
 }
 
-func Mutations(m map[string]*MutationSearch, total *MutationSearch, q *Query, r *Record) {
+func Mutations(m map[string]*MutationSearch, total *MutationSearch, g *GrowthOpts, q *Query, r *Record) {
 	if ok, _ := matchLineages(r, q.Excluding); ok {
 		return
 	}
 	if matchMetadata(r, q) {
 		if ok, _ := matchLineages(r, q.Lineages); ok {
 			total.Count += r.Count
+			if r.Date.Value == g.Start {
+				total.growthStart += r.Count
+			} else if r.Date.Value == g.End {
+				total.growthEnd += r.Count
+			}
 			for _, rm := range r.Mutations {
 				if (q.Prefix == "" || q.Prefix == rm.Prefix) && (q.SuffixFilter == "" || strings.Contains(rm.Suffix, q.SuffixFilter)) {
-					if sr, ok := m[rm.Key]; ok {
+					var sr *MutationSearch
+					var ok bool
+					if sr, ok = m[rm.Key]; ok {
 						sr.Count += r.Count
 					} else {
-						m[rm.Key] = &MutationSearch{Key: rm.Key, Count: r.Count}
+						sr = &MutationSearch{Key: rm.Key, Count: r.Count}
+						m[rm.Key] = sr
+					}
+					if r.Date.Value == g.Start {
+						sr.growthStart += r.Count
+					} else if r.Date.Value == g.End {
+						sr.growthEnd += r.Count
 					}
 				}
 			}

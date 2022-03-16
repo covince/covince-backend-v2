@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/covince/covince-backend-v2/covince"
@@ -129,4 +130,42 @@ func parseQuery(qs url.Values, genes *map[string]bool, maxLineages int) (covince
 		q.SuffixFilter = filter[0]
 	}
 	return q, nil
+}
+
+func parseSearchOptions(qs url.Values, defaultLimit int) covince.SearchOpts {
+	so := covince.SearchOpts{
+		Skip:          0,
+		Limit:         defaultLimit,
+		SortProperty:  "count",
+		SortDirection: "desc",
+	}
+
+	if skip, ok := qs["skip"]; ok {
+		i, err := strconv.Atoi(skip[0])
+		if err == nil {
+			so.Skip = i
+		}
+	}
+	if limit, ok := qs["limit"]; ok {
+		i, err := strconv.Atoi(limit[0])
+		if err == nil {
+			so.Limit = i
+		}
+	}
+	if sort, ok := qs["sort"]; ok {
+		so.SortProperty = sort[0]
+	}
+	if dir, ok := qs["direction"]; ok {
+		if dir[0] == "asc" {
+			so.SortDirection = dir[0]
+		}
+	}
+	if start, ok := qs["growthStart"]; ok {
+		if end, ok := qs["growthEnd"]; ok {
+			so.Growth.Start = start[0]
+			so.Growth.End = end[0]
+		}
+	}
+
+	return so
 }

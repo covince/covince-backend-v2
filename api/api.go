@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/covince/covince-backend-v2/covince"
@@ -92,31 +91,8 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 		}
 
 		if r.URL.Path == opts.PathPrefix+"/mutations" {
-			skip := 0
-			if _skip, ok := qs["skip"]; ok {
-				i, err := strconv.Atoi(_skip[0])
-				if err == nil {
-					skip = i
-				}
-			}
-			limit := opts.MaxSearchResults
-			if _limit, ok := qs["limit"]; ok {
-				i, err := strconv.Atoi(_limit[0])
-				if err == nil {
-					limit = i
-				}
-			}
-			sort := "count"
-			if _sort, ok := qs["sort"]; ok {
-				sort = _sort[0]
-			}
-			dir := "desc"
-			if _dir, ok := qs["direction"]; ok {
-				if _dir[0] == "asc" {
-					dir = _dir[0]
-				}
-			}
-			response = covince.SearchMutations(foreach, &q, skip, limit, sort, dir)
+			searchOpts := parseSearchOptions(qs, opts.MaxSearchResults)
+			response = covince.SearchMutations(foreach, &q, searchOpts)
 		}
 
 		rw.Header().Set("Content-Type", "application/json")

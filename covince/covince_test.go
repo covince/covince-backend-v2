@@ -227,6 +227,7 @@ func TestMutations(t *testing.T) {
 	var m map[string]*MutationSearch
 	var total MutationSearch
 	var q Query
+	g := GrowthOpts{Start: "2020-10-01", End: "2020-11-01"}
 
 	t.Run("A", func(t *testing.T) {
 		m = map[string]*MutationSearch{}
@@ -237,7 +238,7 @@ func TestMutations(t *testing.T) {
 			SuffixFilter: "A",
 		}
 		for _, r := range testRecords {
-			Mutations(m, &total, &q, &r)
+			Mutations(m, &total, &g, &q, &r)
 		}
 		assert.Equal(t, 6, m["A:A"].Count)
 		assert.Equal(t, 6, total.Count)
@@ -251,10 +252,12 @@ func TestMutations(t *testing.T) {
 			Prefix:       "B",
 			SuffixFilter: "B"}
 		for _, r := range testRecords {
-			Mutations(m, &total, &q, &r)
+			Mutations(m, &total, &g, &q, &r)
 		}
 		assert.Equal(t, 5, m["B:B"].Count)
 		assert.Equal(t, 6, total.Count)
+		assert.Equal(t, 2, m["B:B"].growthStart)
+		assert.Equal(t, 3, m["B:B"].growthEnd)
 	})
 
 	t.Run("C", func(t *testing.T) {
@@ -265,7 +268,7 @@ func TestMutations(t *testing.T) {
 			Prefix:       "C",
 			SuffixFilter: "C"}
 		for _, r := range testRecords {
-			Mutations(m, &total, &q, &r)
+			Mutations(m, &total, &g, &q, &r)
 		}
 		assert.Equal(t, 3, m["C:C"].Count)
 		assert.Equal(t, 6, total.Count)

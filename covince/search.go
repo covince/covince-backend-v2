@@ -21,6 +21,12 @@ func (s SortByCount) Less(i, j int) bool { return s[i].Count < s[j].Count }
 func (s SortByCount) Len() int           { return len(s) }
 func (s SortByCount) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
+type SortByGrowth []*MutationSearch
+
+func (s SortByGrowth) Less(i, j int) bool { return s[i].Growth < s[j].Growth }
+func (s SortByGrowth) Len() int           { return len(s) }
+func (s SortByGrowth) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
 type SortByName []*MutationSearch
 
 func (s SortByName) Less(i, j int) bool { return s[i].Key < s[j].Key }
@@ -33,27 +39,50 @@ type SearchResult struct {
 	Page         []*MutationSearch `json:"page"`
 }
 
-func SearchMutations(foreach func(func(r *Record)), q *Query, skip int, limit int, sortProperty string, sortDirection string) SearchResult {
+type GrowthOpts struct {
+	Start string
+	End   string
+	N     int
+}
+
+type SearchOpts struct {
+	Skip          int
+	Limit         int
+	SortProperty  string
+	SortDirection string
+	Growth        GrowthOpts
+}
+
+func SearchMutations(foreach func(func(r *Record)), q *Query, opts SearchOpts) SearchResult {
 	m := make(map[string]*MutationSearch)
 	totalRecords := MutationSearch{}
 	foreach(func(r *Record) {
-		Mutations(m, &totalRecords, q, r)
+		Mutations(m, &totalRecords, &opts.Growth, q, r)
 	})
 	fmt.Println("num muts:", len(m))
 	startSort := time.Now()
 	ms := make([]*MutationSearch, len(m))
 	i := 0
 	for _, sr := range m {
+		if totalRecords.growthStart > 0 && totalRecords.growthEnd > 0 {
+			growthStart := float32(sr.growthStart) / float32(totalRecords.growthStart)
+			growthEnd := float32(sr.growthEnd) / float32(totalRecords.growthEnd)
+			if growthStart > 0 {
+				sr.Growth = (growthEnd - growthStart) / growthStart
+			}
+		}
 		ms[i] = sr
 		i++
 	}
 	var sorter sort.Interface
-	if sortProperty == "name" {
+	if opts.SortProperty == "name" {
 		sorter = SortByName(ms)
+	} else if opts.SortProperty == "growth" {
+		sorter = SortByGrowth(ms)
 	} else {
 		sorter = SortByCount(ms)
 	}
-	if sortDirection == "asc" {
+	if opts.SortDirection == "asc" {
 		sort.Sort(sorter)
 	} else {
 		sort.Sort(sort.Reverse(sorter))
@@ -61,13 +90,13 @@ func SearchMutations(foreach func(func(r *Record)), q *Query, skip int, limit in
 	result := SearchResult{
 		TotalRows:    len(ms),
 		TotalRecords: totalRecords.Count,
-		Page:         make([]*MutationSearch, limit),
+		Page:         make([]*MutationSearch, opts.Limit),
 	}
-	i = skip
-	end := min(skip+limit, len(ms))
+	i = opts.Skip
+	end := min(opts.Skip+opts.Limit, len(ms))
 	for i < end {
 		sr := ms[i]
-		result.Page[i-skip] = sr
+		result.Page[i-opts.Skip] = sr
 		i++
 	}
 	perf.LogDuration("sorting", startSort)
