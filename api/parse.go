@@ -140,6 +140,9 @@ func parseSearchOptions(qs url.Values, defaultLimit int) covince.SearchOpts {
 		SortDirection: "desc",
 	}
 
+	if parent, ok := qs["parent"]; ok {
+		so.Lineage = parent[0]
+	}
 	if skip, ok := qs["skip"]; ok {
 		i, err := strconv.Atoi(skip[0])
 		if err == nil {

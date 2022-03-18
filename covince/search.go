@@ -51,13 +51,14 @@ type SearchOpts struct {
 	SortProperty  string
 	SortDirection string
 	Growth        GrowthOpts
+	Lineage       string
 }
 
 func SearchMutations(foreach func(func(r *Record)), q *Query, opts SearchOpts) SearchResult {
 	m := make(map[string]*MutationSearch)
 	totalRecords := MutationSearch{}
 	foreach(func(r *Record) {
-		Mutations(m, &totalRecords, &opts.Growth, q, r)
+		Mutations(m, &totalRecords, &opts, q, r)
 	})
 	fmt.Println("num muts:", len(m))
 	startSort := time.Now()
@@ -67,9 +68,10 @@ func SearchMutations(foreach func(func(r *Record)), q *Query, opts SearchOpts) S
 		if totalRecords.growthStart > 0 && totalRecords.growthEnd > 0 {
 			growthStart := float32(sr.growthStart) / float32(totalRecords.growthStart)
 			growthEnd := float32(sr.growthEnd) / float32(totalRecords.growthEnd)
-			if growthStart > 0 {
-				sr.Growth = (growthEnd - growthStart) / growthStart
-			}
+			sr.Growth = growthEnd - growthStart
+			// if growthStart > 0 {
+			// 	sr.Growth = (growthEnd - growthStart) / growthStart
+			// }
 		}
 		ms[i] = sr
 		i++
@@ -77,7 +79,7 @@ func SearchMutations(foreach func(func(r *Record)), q *Query, opts SearchOpts) S
 	var sorter sort.Interface
 	if opts.SortProperty == "name" {
 		sorter = SortByName(ms)
-	} else if opts.SortProperty == "growth" {
+	} else if opts.SortProperty == "change" {
 		sorter = SortByGrowth(ms)
 	} else {
 		sorter = SortByCount(ms)

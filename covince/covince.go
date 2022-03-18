@@ -115,32 +115,31 @@ func Lineages(m map[string]int, q *Query, r *Record) {
 	}
 }
 
-func Mutations(m map[string]*MutationSearch, total *MutationSearch, g *GrowthOpts, q *Query, r *Record) {
-	if ok, _ := matchLineages(r, q.Excluding); ok {
-		return
-	}
+func Mutations(m map[string]*MutationSearch, total *MutationSearch, so *SearchOpts, q *Query, r *Record) {
 	if matchMetadata(r, q) {
-		if ok, _ := matchLineages(r, q.Lineages); ok {
-			total.Count += r.Count
-			if r.Date.Value == g.Start {
+		if ok, l := matchLineages(r, q.Lineages); ok {
+			if r.Date.Value == so.Growth.Start {
 				total.growthStart += r.Count
-			} else if r.Date.Value == g.End {
+			} else if r.Date.Value == so.Growth.End {
 				total.growthEnd += r.Count
 			}
-			for _, rm := range r.Mutations {
-				if (q.Prefix == "" || q.Prefix == rm.Prefix) && (q.SuffixFilter == "" || strings.Contains(rm.Suffix, q.SuffixFilter)) {
-					var sr *MutationSearch
-					var ok bool
-					if sr, ok = m[rm.Key]; ok {
-						sr.Count += r.Count
-					} else {
-						sr = &MutationSearch{Key: rm.Key, Count: r.Count}
-						m[rm.Key] = sr
-					}
-					if r.Date.Value == g.Start {
-						sr.growthStart += r.Count
-					} else if r.Date.Value == g.End {
-						sr.growthEnd += r.Count
+			if l == so.Lineage {
+				total.Count += r.Count
+				for _, rm := range r.Mutations {
+					if (q.Prefix == "" || q.Prefix == rm.Prefix) && (q.SuffixFilter == "" || strings.Contains(rm.Suffix, q.SuffixFilter)) {
+						var sr *MutationSearch
+						var ok bool
+						if sr, ok = m[rm.Key]; ok {
+							sr.Count += r.Count
+						} else {
+							sr = &MutationSearch{Key: rm.Key, Count: r.Count}
+							m[rm.Key] = sr
+						}
+						if r.Date.Value == so.Growth.Start {
+							sr.growthStart += r.Count
+						} else if r.Date.Value == so.Growth.End {
+							sr.growthEnd += r.Count
+						}
 					}
 				}
 			}
