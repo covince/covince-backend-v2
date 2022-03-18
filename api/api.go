@@ -11,10 +11,11 @@ import (
 )
 
 type Opts struct {
-	PathPrefix       string
-	MaxLineages      int
-	GetLastModified  func() int64
-	MaxSearchResults int
+	PathPrefix        string
+	MaxLineages       int
+	GetLastModified   func() int64
+	MaxSearchResults  int
+	MutSuppressionMin int
 }
 
 func getInfo(opts Opts, foreach func(func(r *covince.Record)), genes map[string]bool) map[string]interface{} {
@@ -91,7 +92,7 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 		}
 
 		if r.URL.Path == opts.PathPrefix+"/mutations" {
-			searchOpts := parseSearchOptions(qs, opts.MaxSearchResults)
+			searchOpts := parseSearchOptions(qs, opts.MaxSearchResults, opts.MutSuppressionMin)
 			response = covince.SearchMutations(foreach, &q, searchOpts)
 		}
 

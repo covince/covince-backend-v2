@@ -132,12 +132,13 @@ func parseQuery(qs url.Values, genes *map[string]bool, maxLineages int) (covince
 	return q, nil
 }
 
-func parseSearchOptions(qs url.Values, defaultLimit int) covince.SearchOpts {
+func parseSearchOptions(qs url.Values, defaultLimit int, suppressionMin int) covince.SearchOpts {
 	so := covince.SearchOpts{
-		Skip:          0,
-		Limit:         defaultLimit,
-		SortProperty:  "count",
-		SortDirection: "desc",
+		Skip:           0,
+		Limit:          defaultLimit,
+		SortProperty:   "count",
+		SortDirection:  "desc",
+		SuppressionMin: suppressionMin,
 	}
 
 	if parent, ok := qs["parent"]; ok {

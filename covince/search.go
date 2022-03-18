@@ -46,12 +46,13 @@ type GrowthOpts struct {
 }
 
 type SearchOpts struct {
-	Skip          int
-	Limit         int
-	SortProperty  string
-	SortDirection string
-	Growth        GrowthOpts
-	Lineage       string
+	Skip           int
+	Limit          int
+	SortProperty   string
+	SortDirection  string
+	Growth         GrowthOpts
+	Lineage        string
+	SuppressionMin int
 }
 
 func SearchMutations(foreach func(func(r *Record)), q *Query, opts SearchOpts) SearchResult {
@@ -64,7 +65,13 @@ func SearchMutations(foreach func(func(r *Record)), q *Query, opts SearchOpts) S
 	startSort := time.Now()
 	ms := make([]*MutationSearch, len(m))
 	i := 0
+	suppressed := 0
 	for _, sr := range m {
+		if sr.Count < opts.SuppressionMin {
+			suppressed++
+			i++
+			continue
+		}
 		if totalRecords.growthStart > 0 && totalRecords.growthEnd > 0 {
 			growthStart := float32(sr.growthStart) / float32(totalRecords.growthStart)
 			growthEnd := float32(sr.growthEnd) / float32(totalRecords.growthEnd)
@@ -75,6 +82,18 @@ func SearchMutations(foreach func(func(r *Record)), q *Query, opts SearchOpts) S
 		}
 		ms[i] = sr
 		i++
+	}
+	if suppressed > 0 {
+		_ms := ms
+		ms = make([]*MutationSearch, len(ms)-suppressed)
+		skipped := 0
+		for i, sr := range _ms {
+			if sr == nil {
+				skipped++
+			} else {
+				ms[i-skipped] = sr
+			}
+		}
 	}
 	var sorter sort.Interface
 	if opts.SortProperty == "name" {
