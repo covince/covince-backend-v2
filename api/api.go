@@ -67,6 +67,9 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 			foreach(func(r *covince.Record) {
 				covince.Frequency(i, &q, r)
 			})
+			if opts.MutSuppressionMin > 0 {
+				suppressMutations(i, opts.MutSuppressionMin)
+			}
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/spatiotemporal/total" {
@@ -74,13 +77,23 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 			foreach(func(r *covince.Record) {
 				covince.Totals(i, &q, r)
 			})
+			if opts.MutSuppressionMin > 0 {
+				suppress(i, opts.MutSuppressionMin, q.Lineages)
+			}
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/spatiotemporal/lineage" {
+			if len(q.Lineages) != 1 {
+				rw.WriteHeader(http.StatusBadRequest)
+				return
+			}
 			i := make(covince.Index)
 			foreach(func(r *covince.Record) {
 				covince.Spatiotemporal(i, &q, r)
 			})
+			if opts.MutSuppressionMin > 0 {
+				suppress(i, opts.MutSuppressionMin, q.Lineages)
+			}
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/lineages" {
@@ -92,7 +105,8 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 		}
 
 		if r.URL.Path == opts.PathPrefix+"/mutations" {
-			searchOpts := parseSearchOptions(qs, opts.MaxSearchResults, opts.MutSuppressionMin)
+			searchOpts := parseSearchOptions(qs, opts.MaxSearchResults)
+			searchOpts.SuppressionMin = opts.MutSuppressionMin
 			response = covince.SearchMutations(foreach, &q, searchOpts)
 		}
 
