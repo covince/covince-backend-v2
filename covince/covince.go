@@ -84,15 +84,46 @@ func Frequency(i Index, q *Query, r *Record) {
 	}
 }
 
-func Totals(i Index, q *Query, r *Record) {
-	if ok, _ := matchLineages(r, q.Lineages); ok {
-		dateCounts, ok := i[r.Date.Value]
-		if !ok {
-			dateCounts = make(map[string]int)
-			i[r.Date.Value] = dateCounts
-		}
-		dateCounts[r.Area.Value] += r.Count
+func Totals(foreach func(func(r *Record)), q *Query, mutSuppressionMin int) Index {
+	perLineage := make(map[string]Index)
+	for _, ql := range q.Lineages {
+		perLineage[ql.Key] = Index{}
 	}
+
+	foreach(func(r *Record) {
+		if ok, l := matchLineages(r, q.Lineages); ok {
+			i := perLineage[l]
+			dateCounts, ok := i[r.Date.Value]
+			if !ok {
+				dateCounts = make(map[string]int)
+				i[r.Date.Value] = dateCounts
+			}
+			dateCounts[r.Area.Value] += r.Count
+		}
+	})
+
+	if mutSuppressionMin > 0 {
+		for _, ql := range q.Lineages {
+			if len(ql.Mutations) > 0 {
+				Suppress(perLineage[ql.Key], mutSuppressionMin)
+			}
+		}
+	}
+
+	totals := make(Index)
+	for _, i := range perLineage {
+		for date, areaCounts := range i {
+			dateCounts, ok := totals[date]
+			if !ok {
+				totals[date] = areaCounts
+			} else {
+				for area, count := range areaCounts {
+					dateCounts[area] += count
+				}
+			}
+		}
+	}
+	return totals
 }
 
 func Spatiotemporal(i Index, q *Query, r *Record) {

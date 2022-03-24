@@ -91,9 +91,12 @@ func TestTotals(t *testing.T) {
 				{Key: "B", PangoClade: "B."},
 			},
 		}
-		for _, r := range testRecords {
-			Totals(i, &q, &r)
+		foreach := func(agg func(r *Record)) {
+			for _, r := range testRecords {
+				agg(&r)
+			}
 		}
+		Totals(foreach, &q, 0)
 		assert.Equal(t, Index{
 			"2020-09-01": {"A": 1},
 			"2020-10-01": {"B": 2},
