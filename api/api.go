@@ -91,7 +91,7 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 			foreach(func(r *covince.Record) {
 				covince.Spatiotemporal(i, &q, r)
 			})
-			if opts.MutSuppressionMin > 0 {
+			if opts.MutSuppressionMin > 0 && len(q.Lineages[0].Mutations) > 0 {
 				suppress(i, opts.MutSuppressionMin, q.Lineages)
 			}
 			response = i
