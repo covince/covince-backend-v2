@@ -51,12 +51,11 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 	}
 
 	opts := api.Opts{
-		PathPrefix:  urlPath,
-		MaxLineages: 16,
-		GetLastModified: func() int64 {
-			return stat.ModTime().UnixMilli()
-		},
+		PathPrefix:       urlPath,
+		MaxLineages:      16,
+		Genes:            db.Genes,
 		MaxSearchResults: 32,
+		LastModified:     stat.ModTime().UnixMilli(),
 	}
 
 	foreach := func(agg func(r *covince.Record)) {
@@ -67,10 +66,12 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 		perf.LogDuration("Aggregation", start)
 	}
 
-	return api.CovinceAPI(opts, foreach, db.Genes)
+	return api.CovinceAPI(opts, foreach)
 }
 
 // func serverless(filePath string) http.HandlerFunc {
+
+//	TODO: update example to read opts from JSON
 // 	opts := api.Opts{
 // 		MaxLineages: 16,
 // 		GetLastModified: func() int64 {

@@ -14,10 +14,10 @@ import (
 var isPangoLineage = regexp.MustCompile(`^[A-Z]{1,3}(\.[0-9]+)*$`)
 var isDateString = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
 
-func parseMutation(s string, genes *map[string]bool) (covince.Mutation, error) {
+func parseMutation(s string, opts *Opts) (covince.Mutation, error) {
 	var m covince.Mutation
 	split := strings.Split(s, ":")
-	for gene := range *genes {
+	for gene := range opts.Genes {
 		if gene == split[0] {
 			m.Prefix = gene
 			break
@@ -30,7 +30,7 @@ func parseMutation(s string, genes *map[string]bool) (covince.Mutation, error) {
 	return m, nil
 }
 
-func parseLineages(lineages []string, genes *map[string]bool) ([]covince.QueryLineage, error) {
+func parseLineages(lineages []string, opts *Opts) ([]covince.QueryLineage, error) {
 	index := make(map[string]covince.QueryLineage)
 	for _, v := range lineages {
 		if len(v) == 0 {
@@ -38,19 +38,20 @@ func parseLineages(lineages []string, genes *map[string]bool) ([]covince.QueryLi
 		}
 		split := strings.Split(v, "+")
 		lineage := split[0]
-		mutations := make([]covince.Mutation, 0)
-		for i, m := range split[1:] {
-			if i > 1 {
-				break
-			}
-			parsed, err := parseMutation(m, genes)
+		if !isPangoLineage.MatchString(lineage) {
+			return nil, fmt.Errorf("invalid lineages")
+		}
+		mutStrings := split[1:]
+		if opts.SingleMuts && len(mutStrings) > 1 {
+			return nil, fmt.Errorf("single mutations only")
+		}
+		mutations := make([]covince.Mutation, len(mutStrings))
+		for i, m := range mutStrings {
+			parsed, err := parseMutation(m, opts)
 			if err != nil {
 				return nil, err
 			}
-			mutations = append(mutations, parsed)
-		}
-		if !isPangoLineage.MatchString(split[0]) {
-			return nil, fmt.Errorf("invalid lineages")
+			mutations[i] = parsed
 		}
 		if _, ok := index[v]; !ok {
 			index[v] = covince.QueryLineage{
@@ -70,20 +71,20 @@ func parseLineages(lineages []string, genes *map[string]bool) ([]covince.QueryLi
 	return parsedLineages, nil
 }
 
-func parseQuery(qs url.Values, genes *map[string]bool, maxLineages int) (covince.Query, error) {
+func parseQuery(qs url.Values, opts *Opts) (covince.Query, error) {
 	var q covince.Query
 	if lineage, ok := qs["lineage"]; ok {
-		p, err := parseLineages(lineage, genes)
+		p, err := parseLineages(lineage, opts)
 		if err != nil {
 			return q, err
 		}
 		q.Lineages = p
 	} else if lineages, ok := qs["lineages"]; ok {
 		lineages = strings.Split(lineages[0], ",")
-		if len(lineages) > maxLineages {
-			return q, fmt.Errorf("too many lineages, maximum is %v", maxLineages)
+		if len(lineages) > opts.MaxLineages {
+			return q, fmt.Errorf("too many lineages, maximum is %v", opts.MaxLineages)
 		}
-		p, err := parseLineages(lineages, genes)
+		p, err := parseLineages(lineages, opts)
 		if err != nil {
 			return q, err
 		}
@@ -106,14 +107,14 @@ func parseQuery(qs url.Values, genes *map[string]bool, maxLineages int) (covince
 	}
 	if excluding, ok := qs["excluding"]; ok {
 		excluding = strings.Split(excluding[0], ",")
-		excluding, err := parseLineages(excluding, genes)
+		excluding, err := parseLineages(excluding, opts)
 		if err != nil {
 			return q, err
 		}
 		q.Excluding = excluding
 	}
 	if gene, ok := qs["gene"]; ok && len(gene[0]) > 0 {
-		for g := range *genes {
+		for g := range opts.Genes {
 			if g == gene[0] {
 				q.Prefix = g
 				break

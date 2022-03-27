@@ -13,24 +13,26 @@ import (
 type Opts struct {
 	PathPrefix        string
 	MaxLineages       int
-	GetLastModified   func() int64
+	SingleMuts        bool
+	LastModified      int64
 	MaxSearchResults  int
 	MutSuppressionMin int
+	Genes             map[string]bool
 }
 
-func getInfo(opts Opts, foreach func(func(r *covince.Record)), genes map[string]bool) map[string]interface{} {
+func getInfo(opts *Opts, foreach func(func(r *covince.Record))) map[string]interface{} {
 	m := make(map[string]interface{})
 
-	m["lastModified"] = opts.GetLastModified()
+	m["lastModified"] = opts.LastModified
 	m["maxLineages"] = opts.MaxLineages
 
 	dates, areas := covince.Info(foreach)
 	m["dates"] = dates
 	m["areas"] = areas
 
-	uniqueGenes := make([]string, len(genes))
+	uniqueGenes := make([]string, len(opts.Genes))
 	i := 0
-	for k := range genes {
+	for k := range opts.Genes {
 		uniqueGenes[i] = k
 		i++
 	}
@@ -39,8 +41,8 @@ func getInfo(opts Opts, foreach func(func(r *covince.Record)), genes map[string]
 	return m
 }
 
-func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[string]bool) http.HandlerFunc {
-	cachedInfo := getInfo(opts, foreach, genes)
+func CovinceAPI(opts Opts, foreach func(func(r *covince.Record))) http.HandlerFunc {
+	cachedInfo := getInfo(&opts, foreach)
 
 	return func(rw http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -51,7 +53,7 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record)), genes map[stri
 			return
 		}
 		qs := r.URL.Query()
-		q, err := parseQuery(qs, &genes, opts.MaxLineages)
+		q, err := parseQuery(qs, &opts)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusBadRequest)
 			return
