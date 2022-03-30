@@ -29,16 +29,26 @@ func TestParseQuery(t *testing.T) {
 	})
 }
 
-func TestSingleMuts(t *testing.T) {
+func TestMultipleMuts(t *testing.T) {
+	qs := url.Values{"lineages": {"B+S:V36F+S:V36H"}}
 	opts := Opts{
 		Genes:       map[string]bool{"S": true},
 		MaxLineages: 16,
-		SingleMuts:  true,
 	}
 
-	qs := url.Values{"lineages": {"B+S:V36F+S:V36H"}}
-	_, err := parseQuery(qs, &opts)
-	if err == nil {
-		t.Error(err)
-	}
+	t.Run("error if multiple muts disabled", func(t *testing.T) {
+		opts.MultipleMuts = false
+		_, err := parseQuery(qs, &opts)
+		if err == nil {
+			t.Error(err)
+		}
+	})
+
+	t.Run("not error if multiple muts enabled", func(t *testing.T) {
+		opts.MultipleMuts = true
+		_, err := parseQuery(qs, &opts)
+		if err != nil {
+			t.Error(err)
+		}
+	})
 }

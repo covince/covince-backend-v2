@@ -13,7 +13,7 @@ import (
 type Opts struct {
 	PathPrefix        string
 	MaxLineages       int
-	SingleMuts        bool
+	MultipleMuts      bool
 	LastModified      int64
 	MaxSearchResults  int
 	MutSuppressionMin int

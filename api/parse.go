@@ -42,7 +42,7 @@ func parseLineages(lineages []string, opts *Opts) ([]covince.QueryLineage, error
 			return nil, fmt.Errorf("invalid lineages")
 		}
 		mutStrings := split[1:]
-		if opts.SingleMuts && len(mutStrings) > 1 {
+		if !opts.MultipleMuts && len(mutStrings) > 1 {
 			return nil, fmt.Errorf("single mutations only")
 		}
 		mutations := make([]covince.Mutation, len(mutStrings))
