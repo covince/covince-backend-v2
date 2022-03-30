@@ -147,6 +147,9 @@ func Lineages(m map[string]int, q *Query, r *Record) {
 }
 
 func Mutations(m map[string]*MutationSearch, total *MutationSearch, so *SearchOpts, q *Query, r *Record) {
+	if len(r.Mutations) == 0 {
+		return
+	}
 	if matchMetadata(r, q) {
 		if ok, l := matchLineages(r, q.Lineages); ok {
 			if r.Date.Value == so.Growth.Start {
