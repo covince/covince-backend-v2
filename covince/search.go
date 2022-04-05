@@ -3,6 +3,7 @@ package covince
 import (
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/covince/covince-backend-v2/perf"
@@ -53,14 +54,49 @@ type SearchOpts struct {
 	Growth         GrowthOpts
 	Lineage        string
 	SuppressionMin int
+	Threads        int
 }
 
-func SearchMutations(foreach func(func(r *Record)), q *Query, opts SearchOpts) SearchResult {
+func SearchMutations(foreach func(agg func(r *Record), slice int), q *Query, opts SearchOpts) SearchResult {
+	var wg sync.WaitGroup
+	threads := 1
+	if opts.Threads > 0 {
+		threads = opts.Threads
+	}
+	wg.Add(threads)
+	results := make([]map[string]*MutationSearch, threads)
+	totals := make([]MutationSearch, threads)
+	for i := 0; i < threads; i++ {
+		go func(slice int) {
+			m := make(map[string]*MutationSearch)
+			results[slice] = m
+			totalRecords := MutationSearch{}
+			totals[slice] = totalRecords
+			foreach(func(r *Record) {
+				Mutations(m, &totalRecords, &opts, q, r)
+			}, slice)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
 	m := make(map[string]*MutationSearch)
 	totalRecords := MutationSearch{}
-	foreach(func(r *Record) {
-		Mutations(m, &totalRecords, &opts, q, r)
-	})
+	startSum := time.Now()
+	for i := 0; i < threads; i++ {
+		for k, v := range results[i] {
+			if sr, ok := m[k]; ok {
+				sr.Count += v.Count
+			} else {
+				m[k] = v
+			}
+		}
+		t := totals[i]
+		totalRecords.Count = t.Count
+		totalRecords.growthStart = t.growthStart
+		totalRecords.growthEnd = t.growthEnd
+	}
+	perf.LogDuration("summing", startSum)
+
 	fmt.Println("num muts:", len(m))
 	startSort := time.Now()
 	ms := make([]*MutationSearch, len(m))
