@@ -71,8 +71,8 @@ func parseLineages(lineages []string, opts *Opts) ([]covince.QueryLineage, error
 	return parsedLineages, nil
 }
 
-func parseQuery(qs url.Values, opts *Opts) (covince.Query, error) {
-	var q covince.Query
+func parseQuery(qs url.Values, opts *Opts) (*covince.Query, error) {
+	q := &covince.Query{}
 	if lineage, ok := qs["lineage"]; ok {
 		p, err := parseLineages(lineage, opts)
 		if err != nil {
@@ -133,7 +133,7 @@ func parseQuery(qs url.Values, opts *Opts) (covince.Query, error) {
 	return q, nil
 }
 
-func parseSearchOptions(qs url.Values, defaultLimit int) covince.SearchOpts {
+func parseSearchOptions(qs url.Values, defaultLimit int) *covince.SearchOpts {
 	so := covince.SearchOpts{
 		Skip:          0,
 		Limit:         defaultLimit,
@@ -171,5 +171,5 @@ func parseSearchOptions(qs url.Values, defaultLimit int) covince.SearchOpts {
 		}
 	}
 
-	return so
+	return &so
 }

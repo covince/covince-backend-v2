@@ -58,7 +58,7 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 		LastModified:     stat.ModTime().UnixMilli(),
 	}
 
-	foreach := func(agg func(r *covince.Record)) {
+	foreach := func(agg func(r *covince.Record), sliceIndex int) {
 		start := time.Now()
 		for _, r := range db.Records {
 			agg(&r)

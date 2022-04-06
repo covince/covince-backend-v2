@@ -91,7 +91,7 @@ func TestTotals(t *testing.T) {
 				{Key: "B", PangoClade: "B."},
 			},
 		}
-		foreach := func(agg func(r *Record)) {
+		foreach := func(agg func(r *Record), sliceNum int) {
 			for _, r := range testRecords {
 				agg(&r)
 			}
@@ -216,7 +216,7 @@ func TestLineages(t *testing.T) {
 }
 
 func TestInfo(t *testing.T) {
-	foreach := func(agg func(r *Record)) {
+	foreach := func(agg func(r *Record), sliceNum int) {
 		for _, r := range testRecords {
 			agg(&r)
 		}

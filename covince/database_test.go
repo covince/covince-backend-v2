@@ -11,12 +11,5 @@ func TestIndexMutations(t *testing.T) {
 	db.IndexMutations([]string{"A:A"})
 	db.IndexMutations([]string{"A:A", "B:B"})
 	db.IndexMutations([]string{"A:A", "B:B", "C:C"})
-	assert.Equal(t,
-		[]Mutation{
-			{Key: "A:A", Prefix: "A", Suffix: "A"},
-			{Key: "B:B", Prefix: "B", Suffix: "B"},
-			{Key: "C:C", Prefix: "C", Suffix: "C"},
-		},
-		db.Mutations,
-	)
+	assert.Equal(t, testMutations, db.Mutations)
 }

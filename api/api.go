@@ -11,16 +11,17 @@ import (
 )
 
 type Opts struct {
-	PathPrefix        string
-	MaxLineages       int
-	MultipleMuts      bool
-	LastModified      int64
-	MaxSearchResults  int
-	MutSuppressionMin int
 	Genes             map[string]bool
+	LastModified      int64
+	MaxLineages       int
+	MaxSearchResults  int
+	MultipleMuts      bool
+	MutSuppressionMin int
+	PathPrefix        string
+	Threads           int
 }
 
-func getInfo(opts *Opts, foreach func(func(r *covince.Record))) map[string]interface{} {
+func getInfo(opts *Opts, foreach covince.IteratorFunc) map[string]interface{} {
 	m := make(map[string]interface{})
 
 	m["lastModified"] = opts.LastModified
@@ -41,7 +42,7 @@ func getInfo(opts *Opts, foreach func(func(r *covince.Record))) map[string]inter
 	return m
 }
 
-func CovinceAPI(opts Opts, foreach func(func(r *covince.Record))) http.HandlerFunc {
+func CovinceAPI(opts Opts, foreach covince.IteratorFunc) http.HandlerFunc {
 	cachedInfo := getInfo(&opts, foreach)
 
 	return func(rw http.ResponseWriter, r *http.Request) {
@@ -67,15 +68,15 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record))) http.HandlerFu
 		if r.URL.Path == opts.PathPrefix+"/frequency" {
 			i := make(covince.Index)
 			foreach(func(r *covince.Record) {
-				covince.Frequency(i, &q, r)
-			})
+				covince.Frequency(i, q, r)
+			}, -1)
 			if opts.MutSuppressionMin > 0 {
 				covince.SuppressMutations(i, opts.MutSuppressionMin)
 			}
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/spatiotemporal/total" {
-			i := covince.Totals(foreach, &q, opts.MutSuppressionMin)
+			i := covince.Totals(foreach, q, opts.MutSuppressionMin)
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/spatiotemporal/lineage" {
@@ -85,8 +86,8 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record))) http.HandlerFu
 			}
 			i := make(covince.Index)
 			foreach(func(r *covince.Record) {
-				covince.Spatiotemporal(i, &q, r)
-			})
+				covince.Spatiotemporal(i, q, r)
+			}, -1)
 			if opts.MutSuppressionMin > 0 && len(q.Lineages[0].Mutations) > 0 {
 				covince.Suppress(i, opts.MutSuppressionMin)
 			}
@@ -95,15 +96,16 @@ func CovinceAPI(opts Opts, foreach func(func(r *covince.Record))) http.HandlerFu
 		if r.URL.Path == opts.PathPrefix+"/lineages" {
 			m := make(map[string]int)
 			foreach(func(r *covince.Record) {
-				covince.Lineages(m, &q, r)
-			})
+				covince.Lineages(m, q, r)
+			}, -1)
 			response = m
 		}
 
 		if r.URL.Path == opts.PathPrefix+"/mutations" {
 			searchOpts := parseSearchOptions(qs, opts.MaxSearchResults)
 			searchOpts.SuppressionMin = opts.MutSuppressionMin
-			response = covince.SearchMutations(foreach, &q, searchOpts)
+			searchOpts.Threads = opts.Threads
+			response = covince.SearchMutations(foreach, q, searchOpts)
 		}
 
 		rw.Header().Set("Content-Type", "application/json")

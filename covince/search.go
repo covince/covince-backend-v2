@@ -57,45 +57,46 @@ type SearchOpts struct {
 	Threads        int
 }
 
-func SearchMutations(foreach func(agg func(r *Record), slice int), q *Query, opts SearchOpts) SearchResult {
-	var wg sync.WaitGroup
-	threads := 1
-	if opts.Threads > 0 {
-		threads = opts.Threads
-	}
-	wg.Add(threads)
-	results := make([]map[string]*MutationSearch, threads)
-	totals := make([]MutationSearch, threads)
-	for i := 0; i < threads; i++ {
-		go func(slice int) {
-			m := make(map[string]*MutationSearch)
-			results[slice] = m
-			totalRecords := MutationSearch{}
-			totals[slice] = totalRecords
-			foreach(func(r *Record) {
-				Mutations(m, &totalRecords, &opts, q, r)
-			}, slice)
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
+func SearchMutations(foreach IteratorFunc, q *Query, opts *SearchOpts) SearchResult {
 	m := make(map[string]*MutationSearch)
 	totalRecords := MutationSearch{}
-	startSum := time.Now()
-	for i := 0; i < threads; i++ {
-		for k, v := range results[i] {
-			if sr, ok := m[k]; ok {
-				sr.Count += v.Count
-			} else {
-				m[k] = v
-			}
+
+	if opts.Threads > 1 {
+		var wg sync.WaitGroup
+		wg.Add(opts.Threads)
+		results := make([]map[string]*MutationSearch, opts.Threads)
+		totals := make([]MutationSearch, opts.Threads)
+		for i := 0; i < opts.Threads; i++ {
+			go func(slice int) {
+				m := make(map[string]*MutationSearch)
+				results[slice] = m
+				foreach(func(r *Record) {
+					Mutations(m, &totals[slice], opts, q, r)
+				}, slice)
+				wg.Done()
+			}(i)
 		}
-		t := totals[i]
-		totalRecords.Count = t.Count
-		totalRecords.growthStart = t.growthStart
-		totalRecords.growthEnd = t.growthEnd
+		wg.Wait()
+		startSum := time.Now()
+		for i := 0; i < opts.Threads; i++ {
+			for k, v := range results[i] {
+				if sr, ok := m[k]; ok {
+					sr.Count += v.Count
+				} else {
+					m[k] = v
+				}
+			}
+			t := totals[i]
+			totalRecords.Count += t.Count
+			totalRecords.growthStart += t.growthStart
+			totalRecords.growthEnd += t.growthEnd
+		}
+		perf.LogDuration("summing", startSum)
+	} else {
+		foreach(func(r *Record) {
+			Mutations(m, &totalRecords, opts, q, r)
+		}, -1)
 	}
-	perf.LogDuration("summing", startSum)
 
 	fmt.Println("num muts:", len(m))
 	startSort := time.Now()
@@ -112,9 +113,6 @@ func SearchMutations(foreach func(agg func(r *Record), slice int), q *Query, opt
 			growthStart := float32(sr.growthStart) / float32(totalRecords.growthStart)
 			growthEnd := float32(sr.growthEnd) / float32(totalRecords.growthEnd)
 			sr.Growth = growthEnd - growthStart
-			// if growthStart > 0 {
-			// 	sr.Growth = (growthEnd - growthStart) / growthStart
-			// }
 		}
 		ms[i] = sr
 		i++

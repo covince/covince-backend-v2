@@ -30,6 +30,8 @@ type MutationSearch struct {
 	growthEnd   int
 }
 
+type IteratorFunc func(aggregationFunc func(r *Record), sliceIndex int)
+
 func matchLineages(r *Record, lineages []QueryLineage) (bool, string) {
 	for _, ql := range lineages {
 		if strings.HasPrefix(r.PangoClade.Value, ql.PangoClade) {
@@ -84,7 +86,7 @@ func Frequency(i Index, q *Query, r *Record) {
 	}
 }
 
-func Totals(foreach func(func(r *Record)), q *Query, mutSuppressionMin int) Index {
+func Totals(foreach IteratorFunc, q *Query, mutSuppressionMin int) Index {
 	perLineage := make(map[string]Index)
 	for _, ql := range q.Lineages {
 		perLineage[ql.Key] = Index{}
@@ -100,7 +102,7 @@ func Totals(foreach func(func(r *Record)), q *Query, mutSuppressionMin int) Inde
 			}
 			dateCounts[r.Area.Value] += r.Count
 		}
-	})
+	}, -1)
 
 	if mutSuppressionMin > 0 {
 		for _, ql := range q.Lineages {
@@ -181,14 +183,14 @@ func Mutations(m map[string]*MutationSearch, total *MutationSearch, so *SearchOp
 	}
 }
 
-func Info(foreach func(func(r *Record))) ([]string, []string) {
+func Info(foreach IteratorFunc) ([]string, []string) {
 	dates := make(map[string]bool)
 	areas := make(map[string]bool)
 
 	foreach(func(r *Record) {
 		dates[r.Date.Value] = true
 		areas[r.Area.Value] = true
-	})
+	}, -1)
 
 	dateArray := make([]string, len(dates))
 	i := 0
