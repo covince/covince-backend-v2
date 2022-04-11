@@ -42,7 +42,7 @@ func CreateDatabase() *Database {
 	}
 }
 
-func (db *Database) IndexMutations(muts []string) []*Mutation {
+func (db *Database) IndexMutations(muts []string, separator string) []*Mutation {
 	ptrs := make([]*Mutation, len(muts))
 	for i, m := range muts {
 		var j int
@@ -51,7 +51,7 @@ func (db *Database) IndexMutations(muts []string) []*Mutation {
 			j = len(db.Mutations)
 			db.MutationLookup[m] = j
 
-			split := strings.Split(m, ":")
+			split := strings.Split(m, separator)
 			prefix := split[0]
 
 			if _, ok = db.Genes[prefix]; !ok {

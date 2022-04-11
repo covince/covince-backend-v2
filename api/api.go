@@ -17,6 +17,7 @@ type Opts struct {
 	MaxSearchResults  int
 	MultipleMuts      bool
 	MutSuppressionMin int
+	MutSeparator      string
 	PathPrefix        string
 	Threads           int
 }

@@ -16,7 +16,7 @@ var isDateString = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
 
 func parseMutation(s string, opts *Opts) (covince.Mutation, error) {
 	var m covince.Mutation
-	split := strings.Split(s, ":")
+	split := strings.Split(s, opts.MutSeparator)
 	for gene := range opts.Genes {
 		if gene == split[0] {
 			m.Prefix = gene
