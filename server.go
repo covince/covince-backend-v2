@@ -23,7 +23,7 @@ func addRecordToDatabase(db *covince.Database, row []string) {
 			Date: db.IndexValue(row[1]),
 			// Lineage:    db.IndexValue(row[2]),
 			PangoClade: db.IndexValue(row[3]),
-			Mutations:  db.IndexMutations(strings.Split(row[4], "|")),
+			Mutations:  db.IndexMutations(strings.Split(row[4], "|"), ":"),
 			Count:      count,
 		},
 	)
@@ -41,10 +41,19 @@ func server(filePath string, urlPath string) http.HandlerFunc {
 	scanner := bufio.NewScanner(csvfile)
 	db := covince.CreateDatabase()
 
+	buf := []byte{}
+	// increase the buffer size to 2Mb
+	scanner.Buffer(buf, 2048*1024)
+
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), ",")
 		addRecordToDatabase(db, row)
 	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("%v", err)
+	}
+
 	log.Println(len(db.Records), "records")
 	for k := range db.MutationLookup {
 		delete(db.MutationLookup, k)
