@@ -8,8 +8,8 @@ import (
 
 func TestIndexMutations(t *testing.T) {
 	db := CreateDatabase()
-	db.IndexMutations([]string{"A:A"})
-	db.IndexMutations([]string{"A:A", "B:B"})
-	db.IndexMutations([]string{"A:A", "B:B", "C:C"})
+	db.IndexMutations([]string{"A:A"}, ":")
+	db.IndexMutations([]string{"A:A", "B:B"}, ":")
+	db.IndexMutations([]string{"A:A", "B:B", "C:C"}, ":")
 	assert.Equal(t, testMutations, db.Mutations)
 }
