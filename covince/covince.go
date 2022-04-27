@@ -4,38 +4,48 @@ import (
 	"strings"
 )
 
-type Record struct {
-	Date       string
-	Lineage    string
-	PangoClade string
-	Area       string
-	Mutations  string
-	Count      int
-}
-
 type Index map[string]map[string]int
 
 type QueryLineage struct {
 	Key        string
 	PangoClade string
-	Mutations  []string
+	Mutations  []Mutation
 }
 
 type Query struct {
-	Lineages  []QueryLineage
-	Excluding []QueryLineage
-	Area      string
-	DateFrom  string
-	DateTo    string
+	Lineages     []QueryLineage
+	Excluding    []QueryLineage
+	Area         string
+	DateFrom     string
+	DateTo       string
+	Prefix       string
+	SuffixFilter string
 }
 
-func matchLineages(r Record, lineages []QueryLineage) (bool, string) {
+type MutationSearch struct {
+	Key         string  `json:"key"`
+	Count       int     `json:"count"`
+	Growth      float32 `json:"growth"`
+	growthStart int
+	growthEnd   int
+}
+
+type IteratorFunc func(aggregationFunc func(r *Record), sliceIndex int)
+
+func matchLineages(r *Record, lineages []QueryLineage) (bool, string) {
 	for _, ql := range lineages {
-		if strings.HasPrefix(r.PangoClade, ql.PangoClade) {
+		if strings.HasPrefix(r.PangoClade.Value, ql.PangoClade) {
 			if len(ql.Mutations) > 0 {
 				hasMuts := true
-				for _, m := range ql.Mutations {
-					if !strings.Contains(r.Mutations, m) {
+				for _, qm := range ql.Mutations {
+					match := false
+					for _, m := range r.Mutations {
+						if qm.Prefix == m.Prefix && qm.Suffix == m.Suffix {
+							match = true
+							break
+						}
+					}
+					if !match {
 						hasMuts = false
 						break
 					}
@@ -50,71 +60,137 @@ func matchLineages(r Record, lineages []QueryLineage) (bool, string) {
 	return false, ""
 }
 
-func matchMetadata(r Record, q Query) bool {
-	if q.Area != "" && q.Area != "overview" && r.Area != q.Area {
+func matchMetadata(r *Record, q *Query) bool {
+	if q.Area != "" && q.Area != "overview" && r.Area.Value != q.Area {
 		return false
 	}
-	if q.DateFrom != "" && r.Date < q.DateFrom {
+	if q.DateFrom != "" && r.Date.Value < q.DateFrom {
 		return false
 	}
-	if q.DateTo != "" && r.Date > q.DateTo {
+	if q.DateTo != "" && r.Date.Value > q.DateTo {
 		return false
 	}
 	return true
 }
 
-func Frequency(i Index, q Query, r Record) {
+func Frequency(i Index, q *Query, r *Record) {
 	if matchMetadata(r, q) {
 		if ok, key := matchLineages(r, q.Lineages); ok {
-			dateCounts, ok := i[r.Date]
+			dateCounts, ok := i[r.Date.Value]
 			if !ok {
 				dateCounts = make(map[string]int)
-				i[r.Date] = dateCounts
+				i[r.Date.Value] = dateCounts
 			}
 			dateCounts[key] += r.Count
 		}
 	}
 }
 
-func Totals(i Index, q Query, r Record) {
-	if ok, _ := matchLineages(r, q.Lineages); ok {
-		dateCounts, ok := i[r.Date]
-		if !ok {
-			dateCounts = make(map[string]int)
-			i[r.Date] = dateCounts
-		}
-		dateCounts[r.Area] += r.Count
+func Totals(foreach IteratorFunc, q *Query, mutSuppressionMin int) Index {
+	perLineage := make(map[string]Index)
+	for _, ql := range q.Lineages {
+		perLineage[ql.Key] = Index{}
 	}
+
+	foreach(func(r *Record) {
+		if ok, l := matchLineages(r, q.Lineages); ok {
+			i := perLineage[l]
+			dateCounts, ok := i[r.Date.Value]
+			if !ok {
+				dateCounts = make(map[string]int)
+				i[r.Date.Value] = dateCounts
+			}
+			dateCounts[r.Area.Value] += r.Count
+		}
+	}, -1)
+
+	if mutSuppressionMin > 0 {
+		for _, ql := range q.Lineages {
+			if len(ql.Mutations) > 0 {
+				Suppress(perLineage[ql.Key], mutSuppressionMin)
+			}
+		}
+	}
+
+	totals := make(Index)
+	for _, i := range perLineage {
+		for date, areaCounts := range i {
+			dateCounts, ok := totals[date]
+			if !ok {
+				totals[date] = areaCounts
+			} else {
+				for area, count := range areaCounts {
+					dateCounts[area] += count
+				}
+			}
+		}
+	}
+	return totals
 }
 
-func Spatiotemporal(i Index, q Query, r Record) {
+func Spatiotemporal(i Index, q *Query, r *Record) {
 	if ok, _ := matchLineages(r, q.Excluding); ok {
 		return
 	}
 	if ok, _ := matchLineages(r, q.Lineages); ok {
-		dateCounts, ok := i[r.Date]
+		dateCounts, ok := i[r.Date.Value]
 		if !ok {
 			dateCounts = make(map[string]int)
-			i[r.Date] = dateCounts
+			i[r.Date.Value] = dateCounts
 		}
-		dateCounts[r.Area] += r.Count
+		dateCounts[r.Area.Value] += r.Count
 	}
 }
 
-func Lineages(m map[string]int, q Query, r Record) {
+func Lineages(m map[string]int, q *Query, r *Record) {
 	if matchMetadata(r, q) {
-		m[r.PangoClade] += r.Count
+		m[r.PangoClade.Value] += r.Count
 	}
 }
 
-func Info(foreach func(func(r Record))) ([]string, []string) {
+func Mutations(m map[string]*MutationSearch, total *MutationSearch, so *SearchOpts, q *Query, r *Record) {
+	if len(r.Mutations) == 0 {
+		return
+	}
+	if matchMetadata(r, q) {
+		if ok, l := matchLineages(r, q.Lineages); ok {
+			if r.Date.Value == so.Growth.Start {
+				total.growthStart += r.Count
+			} else if r.Date.Value == so.Growth.End {
+				total.growthEnd += r.Count
+			}
+			if l == so.Lineage {
+				total.Count += r.Count
+				for _, rm := range r.Mutations {
+					if (q.Prefix == "" || q.Prefix == rm.Prefix) && (q.SuffixFilter == "" || strings.Contains(rm.Suffix, q.SuffixFilter)) {
+						var sr *MutationSearch
+						var ok bool
+						if sr, ok = m[rm.Key]; ok {
+							sr.Count += r.Count
+						} else {
+							sr = &MutationSearch{Key: rm.Key, Count: r.Count}
+							m[rm.Key] = sr
+						}
+						if r.Date.Value == so.Growth.Start {
+							sr.growthStart += r.Count
+						} else if r.Date.Value == so.Growth.End {
+							sr.growthEnd += r.Count
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func Info(foreach IteratorFunc) ([]string, []string) {
 	dates := make(map[string]bool)
 	areas := make(map[string]bool)
 
-	foreach(func(r Record) {
-		dates[r.Date] = true
-		areas[r.Area] = true
-	})
+	foreach(func(r *Record) {
+		dates[r.Date.Value] = true
+		areas[r.Area.Value] = true
+	}, -1)
 
 	dateArray := make([]string, len(dates))
 	i := 0

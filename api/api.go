@@ -2,110 +2,50 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"net/url"
-	"regexp"
-	"runtime"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/covince/covince-backend-v2/covince"
+	"github.com/covince/covince-backend-v2/perf"
 )
 
 type Opts struct {
-	PathPrefix      string
-	MaxLineages     int
-	GetLastModified func() int64
+	Genes             map[string]bool
+	LastModified      int64
+	MaxLineages       int
+	MaxSearchResults  int
+	MultipleMuts      bool
+	MutSuppressionMin int
+	MutSeparator      string
+	PathPrefix        string
+	Threads           int
 }
 
-var isPangoLineage = regexp.MustCompile(`^[A-Z]{1,3}(\.[0-9]+)*$`)
-var isDateString = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
+func getInfo(opts *Opts, foreach covince.IteratorFunc) map[string]interface{} {
+	m := make(map[string]interface{})
 
-func parseLineages(lineages []string) ([]covince.QueryLineage, error) {
-	index := make(map[string]covince.QueryLineage)
-	for _, v := range lineages {
-		if len(v) == 0 {
-			continue
-		}
-		split := strings.Split(v, "+")
-		lineage := split[0]
-		mutations := split[1:]
-		for i, m := range mutations {
-			if i > 1 {
-				break
-			}
-			mutations[i] = "|" + m + "|"
-		}
-		if !isPangoLineage.MatchString(split[0]) {
-			return nil, fmt.Errorf("invalid lineages")
-		}
-		if _, ok := index[v]; !ok {
-			index[v] = covince.QueryLineage{
-				Key:        v,
-				PangoClade: lineage + ".",
-				Mutations:  mutations,
-			}
-		}
-	}
-	parsedLineages := make([]covince.QueryLineage, len(index))
+	m["lastModified"] = opts.LastModified
+	m["maxLineages"] = opts.MaxLineages
+
+	dates, areas := covince.Info(foreach)
+	m["dates"] = dates
+	m["areas"] = areas
+
+	uniqueGenes := make([]string, len(opts.Genes))
 	i := 0
-	for _, v := range index {
-		parsedLineages[i] = v
+	for k := range opts.Genes {
+		uniqueGenes[i] = k
 		i++
 	}
-	sort.Sort(covince.SortLineagesForQuery(parsedLineages))
-	return parsedLineages, nil
+	m["genes"] = uniqueGenes
+
+	return m
 }
 
-func parseQuery(qs url.Values, maxLineages int) (covince.Query, error) {
-	var q covince.Query
-	if lineage, ok := qs["lineage"]; ok {
-		p, err := parseLineages(lineage)
-		if err != nil {
-			return q, err
-		}
-		q.Lineages = p
-	} else if lineages, ok := qs["lineages"]; ok {
-		lineages = strings.Split(lineages[0], ",")
-		if len(lineages) > maxLineages {
-			return q, fmt.Errorf("too many lineages, maximum is %v", maxLineages)
-		}
-		p, err := parseLineages(lineages)
-		if err != nil {
-			return q, err
-		}
-		q.Lineages = p
-	}
-	if a, ok := qs["area"]; ok && a[0] != "overview" {
-		q.Area = a[0]
-	}
-	if from, ok := qs["from"]; ok && len(from[0]) > 0 {
-		if !isDateString.MatchString(from[0]) {
-			return q, fmt.Errorf("invalid date")
-		}
-		q.DateFrom = from[0]
-	}
-	if to, ok := qs["to"]; ok && len(to[0]) > 0 {
-		if !isDateString.MatchString(to[0]) {
-			return q, fmt.Errorf("invalid date")
-		}
-		q.DateTo = to[0]
-	}
-	if excluding, ok := qs["excluding"]; ok {
-		excluding = strings.Split(excluding[0], ",")
-		excluding, err := parseLineages(excluding)
-		if err != nil {
-			return q, err
-		}
-		q.Excluding = excluding
-	}
-	return q, nil
-}
+func CovinceAPI(opts Opts, foreach covince.IteratorFunc) http.HandlerFunc {
+	cachedInfo := getInfo(&opts, foreach)
 
-func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		log.Println("Handle request")
@@ -115,7 +55,7 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 			return
 		}
 		qs := r.URL.Query()
-		q, err := parseQuery(qs, opts.MaxLineages)
+		q, err := parseQuery(qs, &opts)
 		if err != nil {
 			http.Error(rw, err.Error(), http.StatusBadRequest)
 			return
@@ -124,62 +64,56 @@ func CovinceAPI(opts Opts, foreach func(func(r covince.Record))) http.HandlerFun
 		var response interface{}
 
 		if r.URL.Path == opts.PathPrefix+"/info" {
-			dates, areas := covince.Info(foreach)
-
-			m := make(map[string]interface{})
-			m["dates"] = dates
-			m["areas"] = areas
-			m["lastModified"] = opts.GetLastModified()
-			m["maxLineages"] = opts.MaxLineages
-
-			response = m
+			response = cachedInfo
 		}
 		if r.URL.Path == opts.PathPrefix+"/frequency" {
 			i := make(covince.Index)
-			foreach(func(r covince.Record) {
+			foreach(func(r *covince.Record) {
 				covince.Frequency(i, q, r)
-			})
+			}, -1)
+			if opts.MutSuppressionMin > 0 {
+				covince.SuppressMutations(i, opts.MutSuppressionMin)
+			}
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/spatiotemporal/total" {
-			i := make(covince.Index)
-			foreach(func(r covince.Record) {
-				covince.Totals(i, q, r)
-			})
+			i := covince.Totals(foreach, q, opts.MutSuppressionMin)
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/spatiotemporal/lineage" {
+			if len(q.Lineages) != 1 {
+				rw.WriteHeader(http.StatusBadRequest)
+				return
+			}
 			i := make(covince.Index)
-			foreach(func(r covince.Record) {
+			foreach(func(r *covince.Record) {
 				covince.Spatiotemporal(i, q, r)
-			})
+			}, -1)
+			if opts.MutSuppressionMin > 0 && len(q.Lineages[0].Mutations) > 0 {
+				covince.Suppress(i, opts.MutSuppressionMin)
+			}
 			response = i
 		}
 		if r.URL.Path == opts.PathPrefix+"/lineages" {
 			m := make(map[string]int)
-			foreach(func(r covince.Record) {
+			foreach(func(r *covince.Record) {
 				covince.Lineages(m, q, r)
-			})
+			}, -1)
 			response = m
+		}
+
+		if r.URL.Path == opts.PathPrefix+"/mutations" {
+			searchOpts := parseSearchOptions(qs, opts.MaxSearchResults)
+			searchOpts.SuppressionMin = opts.MutSuppressionMin
+			searchOpts.Threads = opts.Threads
+			response = covince.SearchMutations(foreach, q, searchOpts)
 		}
 
 		rw.Header().Set("Content-Type", "application/json")
 		rw.WriteHeader(http.StatusOK)
 		json.NewEncoder(rw).Encode(response)
 
-		var m runtime.MemStats
-		runtime.ReadMemStats(&m)
-		// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-		fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-		fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-		fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-		fmt.Printf("\tNumGC = %v\n", m.NumGC)
-
-		duration := time.Since(start)
-		log.Println(r.URL.Path, "took", duration.Milliseconds(), "ms")
+		perf.LogMemory()
+		perf.LogDuration(r.URL.Path, start)
 	}
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }
