@@ -18,15 +18,25 @@ func min(a, b int) int {
 
 type SortByCount []*MutationSearch
 
-func (s SortByCount) Less(i, j int) bool { return s[i].Count < s[j].Count }
-func (s SortByCount) Len() int           { return len(s) }
-func (s SortByCount) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s SortByCount) Less(i, j int) bool {
+	if s[i].Count == s[j].Count {
+		return SortByName(s).Less(i, j)
+	}
+	return s[i].Count < s[j].Count
+}
+func (s SortByCount) Len() int      { return len(s) }
+func (s SortByCount) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 type SortByGrowth []*MutationSearch
 
-func (s SortByGrowth) Less(i, j int) bool { return s[i].Growth < s[j].Growth }
-func (s SortByGrowth) Len() int           { return len(s) }
-func (s SortByGrowth) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s SortByGrowth) Less(i, j int) bool {
+	if s[i].Growth == s[j].Growth {
+		return SortByName(s).Less(i, j)
+	}
+	return s[i].Growth < s[j].Growth
+}
+func (s SortByGrowth) Len() int      { return len(s) }
+func (s SortByGrowth) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 type SortByName []*MutationSearch
 
@@ -82,6 +92,8 @@ func SearchMutations(foreach IteratorFunc, q *Query, opts *SearchOpts) SearchRes
 			for k, v := range results[i] {
 				if sr, ok := m[k]; ok {
 					sr.Count += v.Count
+					sr.growthStart += v.growthStart
+					sr.growthEnd += v.growthEnd
 				} else {
 					m[k] = v
 				}
