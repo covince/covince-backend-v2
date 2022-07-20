@@ -92,6 +92,8 @@ func SearchMutations(foreach IteratorFunc, q *Query, opts *SearchOpts) SearchRes
 			for k, v := range results[i] {
 				if sr, ok := m[k]; ok {
 					sr.Count += v.Count
+					sr.growthStart += v.growthStart
+					sr.growthEnd += v.growthEnd
 				} else {
 					m[k] = v
 				}
